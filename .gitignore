@@ -16,3 +16,6 @@ dist/
 htmlcov/
 .vscode/
 .idea/
+_page*.png
+_mark6_*
+测试.pdf

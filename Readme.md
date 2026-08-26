@@ -3,6 +3,7 @@
 ## 当前版本
 
 - 推荐源码：`Mark5.py`
+- 改进版本：`Mark6.py`
 - 旧版备份：`Mark4.py`
 - 图标文件：`pdf_tool_icon.ico`
 - 本地 EXE：`dist\Mark5Final.exe`
@@ -38,6 +39,20 @@ python -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool
 
 ```powershell
 python Mark5.py
+```
+
+Mark6 针对斜向浅灰水印进行了增强，尤其适合识别和去除：
+
+```text
+沪江德语 www.hujiang.com
+```
+
+Mark6 同时支持文本层识别和渲染图像识别。对于字体编码异常、无法正常提取文字的 PDF，会定位原始 PDF 内容流中的斜向水印 Pattern，避免用整块白色矩形覆盖正文。
+
+运行 Mark6：
+
+```powershell
+python Mark6.py
 ```
 
 如果使用本项目的干净虚拟环境：
