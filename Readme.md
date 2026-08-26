@@ -5,7 +5,34 @@
 - 推荐源码：`Mark5.py`
 - 旧版备份：`Mark4.py`
 - 图标文件：`pdf_tool_icon.ico`
-- 当前 EXE：`dist\Mark5Final.exe`
+- 本地 EXE：`dist\Mark5Final.exe`
+
+## Git 同步范围
+
+本项目只通过 Git 同步核心源码、图标、说明文档和 `requirements.txt`。
+
+以下内容属于本地开发或编译生成文件，不是核心代码，不会同步到 GitHub：
+
+- `.venv/`、`venv/`：Python 虚拟环境
+- `build/`：PyInstaller 构建临时文件
+- `dist/`：PyInstaller 编译生成的 EXE 文件
+- `*.spec`、`__pycache__/`：打包配置和 Python 缓存
+- 其他测试缓存、IDE 配置和本地环境文件
+
+在其他电脑上 clone 项目后，需要先创建虚拟环境并安装依赖：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+之后即可在本地运行源码或重新生成 `build/`、`dist/`：
+
+```powershell
+python Mark5.py
+python -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark5Final Mark5.py
+```
 
 直接运行源码：
 
