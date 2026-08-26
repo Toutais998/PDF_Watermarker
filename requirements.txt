@@ -1,0 +1,6 @@
+PyMuPDF
+opencv-python
+numpy
+Pillow
+tkinterdnd2
+pyinstaller
