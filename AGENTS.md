@@ -8,8 +8,10 @@ Tkinter, PyMuPDF, OpenCV, NumPy, Pillow, and tkinterdnd2.
 
 ## Source Files
 
+- `Mark8.py` is the current improved implementation.
+- `Mark7.py` is the previous improved implementation.
+- `Mark6.py` is the previous improved implementation.
 - `Mark5.py` is the previous stable implementation.
-- `Mark6.py` is the current improved implementation.
 - `Mark1.py` through `Mark4.py` are historical versions and should be
   preserved unless the user explicitly asks for cleanup.
 - `pdf_tool_icon.ico` is the application icon.
@@ -35,12 +37,24 @@ Run the current application with:
 python Mark6.py
 ```
 
+Run the current application with:
+
+```powershell
+python Mark7.py
+```
+
+Run the current application with:
+
+```powershell
+python Mark8.py
+```
+
 ## Validation
 
 Before handing off Python changes, run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile Mark6.py
+.\.venv\Scripts\python.exe -m py_compile Mark8.py
 ```
 
 When changing watermark detection or removal, validate against a representative
@@ -51,7 +65,13 @@ PDF and confirm that the watermark is removed without damaging nearby content.
 Build the Windows executable with the virtual environment:
 
 ```powershell
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark6Final Mark6.py
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark7Final Mark7.py
+```
+
+Build the current Windows executable with:
+
+```powershell
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark8Final Mark8.py
 ```
 
 The generated `build/`, `dist/`, and `*.spec` files are local build artifacts.
@@ -67,6 +87,8 @@ They must remain ignored by Git and must not be committed.
   requested.
 - Use clear commit messages and push only after the working tree has been
   reviewed.
+- Every functional update or new Mark version must update both `Readme.md` and
+  `AGENTS.md` in the same change.
 
 ## Code Style
 
@@ -76,3 +98,25 @@ They must remain ignored by Git and must not be committed.
 - Avoid adding dependencies unless they are necessary and documented in
   `requirements.txt`.
 - Do not add comments that merely restate obvious code.
+
+## Version Notes
+
+- Mark6 added support for Hujiang-style pale diagonal text/path watermarks.
+- Mark7 adds support for Test-2-style repeated bottom QR-code watermarks,
+  bottom QR instruction text, and repeated Koolearn/New Oriental right-side
+  background image watermarks.
+- Mark7 supports selecting or dragging multiple PDFs and recursively importing
+  a folder. Files are analyzed sequentially and their detection results can be
+  reviewed from the batch-file selector.
+- Mark8 fixes Test-3-style slanted pale vector watermarks (e.g. 沪江德语):
+  removal now deletes the pale/translucent vector paths directly from the page
+  content stream instead of white-filling the whole bounding rectangle, so body
+  text is no longer wiped out. A precise pale-pixel cell redaction acts as a
+  safe fallback when the path parser matches nothing.
+- Mark8 keyword-based text-watermark detection only triggers near page edges or
+  on rotated text, so body lines that merely contain a brand word (e.g.
+  "Hujiang") are no longer misclassified as watermarks.
+- Mark8 rendered-diagonal detection now auto-fits the dominant diagonal
+  orientation and clusters parallel bands instead of relying on hardcoded
+  slopes/intercepts, and it is skipped on pages already matched by the
+  soft-vector detector.

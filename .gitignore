@@ -18,4 +18,9 @@ htmlcov/
 .idea/
 _page*.png
 _mark6_*
+_mark7_*
+_test2_*
+_delete_image_*
 测试.pdf
+Test-*.pdf
+Test*.pdf
