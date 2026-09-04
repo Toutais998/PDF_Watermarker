@@ -4,12 +4,14 @@
 
 PDF Watermarker is a Windows desktop application for detecting and removing
 watermarks from PDF files. The main application is implemented with Python,
-Tkinter, PyMuPDF, OpenCV, NumPy, Pillow, and tkinterdnd2.
+Tkinter, PyMuPDF, OpenCV, NumPy, Pillow, tkinterdnd2, and pikepdf/libqpdf.
 
 ## Source Files
 
-- `Mark8.py` is the current improved implementation.
-- `Mark7.py` is the previous improved implementation.
+- `Mark9.py` is the current improved implementation.
+- `Mark8.py` is the previous improved implementation.
+- `pdf_decryptor/` is the independent, password-supplied PDF decryption module
+  used before Mark9 opens a document with PyMuPDF.
 - `Mark6.py` is the previous improved implementation.
 - `Mark5.py` is the previous stable implementation.
 - `Mark1.py` through `Mark4.py` are historical versions and should be
@@ -34,19 +36,7 @@ python -m pip install -r requirements.txt
 Run the current application with:
 
 ```powershell
-python Mark6.py
-```
-
-Run the current application with:
-
-```powershell
-python Mark7.py
-```
-
-Run the current application with:
-
-```powershell
-python Mark8.py
+python Mark9.py
 ```
 
 ## Validation
@@ -54,7 +44,7 @@ python Mark8.py
 Before handing off Python changes, run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile Mark8.py
+.\.venv\Scripts\python.exe -m py_compile Mark9.py pdf_decryptor\core.py
 ```
 
 When changing watermark detection or removal, validate against a representative
@@ -71,7 +61,7 @@ Build the Windows executable with the virtual environment:
 Build the current Windows executable with:
 
 ```powershell
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark8Final Mark8.py
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark9Final Mark9.py
 ```
 
 The generated `build/`, `dist/`, and `*.spec` files are local build artifacts.
@@ -120,3 +110,9 @@ They must remain ignored by Git and must not be committed.
   orientation and clusters parallel bands instead of relying on hardcoded
   slopes/intercepts, and it is skipped on pages already matched by the
   soft-vector detector.
+- Mark9 checks PDF encryption before PyMuPDF analysis and uses the independent
+  `pdf_decryptor` package (pikepdf/libqpdf) to create and verify an unencrypted
+  session temp file. Empty user passwords work automatically; known non-empty
+  user or owner passwords are requested through a masked dialog. The original
+  PDF is never overwritten, cached decrypted files are reused during the
+  session, and all session decryption files are removed on exit.
