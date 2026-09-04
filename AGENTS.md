@@ -8,10 +8,12 @@ Tkinter, PyMuPDF, OpenCV, NumPy, Pillow, tkinterdnd2, and pikepdf/libqpdf.
 
 ## Source Files
 
-- `Mark9.py` is the current improved implementation.
-- `Mark8.py` is the previous improved implementation.
+- `Mark11.py` is the current improved implementation.
+- `Mark10.py` is the previous improved implementation.
+- `Mark9.py` is the previous improved implementation.
+- `Mark8.py` is the earlier improved implementation.
 - `pdf_decryptor/` is the independent, password-supplied PDF decryption module
-  used before Mark9 opens a document with PyMuPDF.
+  used before Mark11 opens a document with PyMuPDF.
 - `Mark6.py` is the previous improved implementation.
 - `Mark5.py` is the previous stable implementation.
 - `Mark1.py` through `Mark4.py` are historical versions and should be
@@ -36,7 +38,7 @@ python -m pip install -r requirements.txt
 Run the current application with:
 
 ```powershell
-python Mark9.py
+python Mark10.py
 ```
 
 ## Validation
@@ -44,7 +46,7 @@ python Mark9.py
 Before handing off Python changes, run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile Mark9.py pdf_decryptor\core.py
+.\.venv\Scripts\python.exe -m py_compile Mark10.py pdf_decryptor\core.py
 ```
 
 When changing watermark detection or removal, validate against a representative
@@ -58,10 +60,22 @@ Build the Windows executable with the virtual environment:
 .\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark7Final Mark7.py
 ```
 
-Build the current Windows executable with:
+Build the previous Mark9 Windows executable with:
 
 ```powershell
 .\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark9Final Mark9.py
+```
+
+Build the previous Mark10 Windows executable with:
+
+```powershell
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark10Final Mark10.py
+```
+
+Build the current Mark11 Windows executable with:
+
+```powershell
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark11Final Mark11.py
 ```
 
 The generated `build/`, `dist/`, and `*.spec` files are local build artifacts.
@@ -116,3 +130,19 @@ They must remain ignored by Git and must not be committed.
   user or owner passwords are requested through a masked dialog. The original
   PDF is never overwritten, cached decrypted files are reused during the
   session, and all session decryption files are removed on exit.
+- Mark10 detects explicit PDF `/Subtype /Watermark` artifacts and producer-tagged
+  `/Private /Watermark` image/Form XObjects before pixel analysis. This supports
+  Test4's optional-content, even-page image watermark and removes Test5's tiled
+  Form watermark directly from content streams.
+- Mark10 avoids expanding duplicate/dead image resources, filters 1-pixel drawing
+  helpers, indexes removals by page, and uses a faster safe garbage-collection
+  level when saving.
+- Every Mark10 preview and final result is explicitly saved without encryption and
+  verified to contain no password or PDF permission protection before success is
+  reported.
+- Mark11 uses deep resource cleanup (`garbage=4`, `clean=1`, object streams, and
+  deflate) when saving so Test4-style PDFs can shrink without rasterizing text.
+  It diagnoses missing `ToUnicode` maps in FzBookMaker/custom-encoded fonts and
+  explains that displayed-but-uncopyable text requires external OCR (Tesseract
+  with Chinese language data); the original glyph encoding cannot be losslessly
+  reconstructed from the PDF alone.

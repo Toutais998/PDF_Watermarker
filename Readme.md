@@ -1,11 +1,11 @@
-# PDF 水印去除工具（Mark9）
+# PDF 水印去除工具（Mark11）
 
 ## 当前版本
 
-- 推荐源码：`Mark9.py`
-- 上一版：`Mark8.py`
+- 推荐源码：`Mark11.py`
+- 上一版：`Mark9.py`
 - 图标文件：`pdf_tool_icon.ico`
-- 本地 EXE：`dist\Mark9Final.exe`（已完成本地构建，不纳入 Git）
+- 本地 EXE：`dist\Mark11Final.exe`（构建产物不纳入 Git）
 
 ## Git 同步范围
 
@@ -30,13 +30,13 @@ python -m pip install -r requirements.txt
 之后即可在本地运行源码或重新生成 `build/`、`dist/`：
 
 ```powershell
-python Mark9.py
+python Mark11.py
 ```
 
 直接运行当前版本源码：
 
 ```powershell
-python Mark9.py
+python Mark11.py
 ```
 
 ## 版本更新记录
@@ -88,7 +88,7 @@ python Mark9.py
 - 办法：自研 PDF 内容流迷你解析器，tokenize 路径算子（`m/l/c/v/y/re/h` 与 `f/f*/B/B*/b/b*`）并跟踪图形状态（`q/Q` 保存恢复、`g/rg/k/scn` 颜色、`gs` 透明度、`cm` 变换矩阵），计算每个填充路径的包围盒（底部原点坐标翻转为顶部原点）并与目标矩形判定相交；凡浅色（亮度≥0.5）或半透明（alpha<0.9）的填充路径即删除。重建内容流时只切掉对应字节区间，其余内容原样保留。
 - 验证：Test-3 全 321 页逐页比对提取文本为 0 处差异；斜向水印带内的浅色像素占比从 16% 降至约 1%，正文暗色像素保留率 99% 以上。
 
-### Mark9 —— 加密 PDF 授权解密（当前版本）
+### Mark9 —— 加密 PDF 授权解密
 
 - 在创建 PyMuPDF 文档和分析水印之前，先通过项目内 `pdf_decryptor` 模块检查 PDF 加密字典。
 - 加密文件使用调用方提供的合法用户密码或所有者密码解密；空用户密码文件自动处理，非空密码通过隐藏输入框输入，密码错误可重试。
@@ -96,6 +96,21 @@ python Mark9.py
 - 解密到会话级临时 PDF，经“未加密 + 页数一致”验证后再交给 Mark9 分析；原 PDF 不修改，程序退出时删除临时文件。
 - 批量文件和重新选择文件时复用同一个已验证的临时副本，避免重复解密和对象编号变化。
 - 支持 RC4 40/128 位、AES-128-CBC、AES-256-CBC（R=5/6）；qpdf 不支持的安全处理器会明确报错。
+
+### Mark10 —— 内置水印对象与性能修复（当前版本）
+
+- 新增标准 `/Subtype /Watermark` Artifact 和生产器 `/Private /Watermark` 标记识别。Test4 中受可选内容层控制、仅出现在偶数页的“上海同济大学”图片水印，即使 `get_image_rects()` 返回空也能识别并按页删除；Test5 的重复斜向 Form XObject 水印直接删除内容流调用，不再依赖像素擦除。
+- 普通图片扫描改用页面实际显示的图片信息，并过滤 PDF 生成器用于线条/底色的 1x1、1xN 微型图片。避免 Test4 的 92,848 个资源引用被重复展开为约 65 万个候选。
+- 页面存在明确 Watermark Artifact 时跳过整页 OpenCV 斜向检测，并排除已经由对象级候选覆盖的旋转文字候选；浅色判断改为真实 RGB 亮度，避免把正文红色标题误判为浅色边缘水印。
+- 移除阶段预先按页索引候选，图片/Form 只删除当前页精确的 `/Name Do` 调用；浅色像素兜底改为一次性提交 redaction，避免逐小块反复重写页面。
+- 保存清理级别由耗时的全局重复对象合并调整为无用对象清理。测试中 Test4 完整识别约 3.1 秒，移除加保存约 0.6 秒；Test5 识别约 0.04 秒，移除加保存约 0.09 秒（具体时间随电脑而异）。
+- 所有去水印预览和最终输出均显式使用 `PDF_ENCRYPT_NONE` 保存，并在写入后再次检查；若仍存在密码或保护则拒绝报告保存成功。
+
+### Mark11 —— Test4 资源瘦身与文本编码诊断
+
+- Test4 体积大的主要原因不是水印图片，而是 224 页中约 2,124 个独立嵌入字体程序、数万个对象和大量重复小内容流；去除水印后使用 `garbage=4`、`clean=1`、`use_objstms=1`、`deflate=True` 深度回收未引用资源。该模式不把正文栅格化，实测 Test4 仅重新保存即可从约 15.96 MB 降至约 13.47 MB（具体大小随 PDF 内容变化）。
+- Test4 的字体使用 FzBookMaker 自定义 `/Gxx` 编码，许多字体没有有效 `ToUnicode` 映射，因此阅读器能按字形显示但复制得到乱码。这是源 PDF 已丢失 Unicode 映射，无法通过改保存参数无损反推；Mark11 打开和保存时会明确诊断并提示需要 Tesseract 中文语言包进行 OCR 重建文本层。
+- Mark11 保存结果继续强制移除密码和权限保护，并在写入后验证。
 
 ## 推荐操作
 
@@ -118,7 +133,7 @@ python Mark9.py
 
 ## 本次打包结果
 
-Mark9 已使用项目 `.venv` 构建 `dist\Mark9Final.exe`，约 97 MiB。构建清单已确认包含
+Mark9 曾使用项目 `.venv` 构建 `dist\Mark9Final.exe`，约 97 MiB。构建清单已确认包含
 `pikepdf\_core.pyd` 和 `pikepdf.libs\qpdf30-*.dll`；隐藏启动冒烟测试通过。
 
 之前的 `Mark5Final.exe` 达到约 1.3GB，是因为直接用全局 Python 打包时，PyInstaller 误收进了 `torch`、CUDA、`cupy`、`pyarrow`、`onnxruntime`、`scipy`、`pandas` 等大型依赖。
@@ -126,26 +141,26 @@ Mark9 已使用项目 `.venv` 构建 `dist\Mark9Final.exe`，约 97 MiB。构建
 这些库本项目不需要。
 建议始终使用项目内 `.venv` 打包：
 
-## 打包 Mark9
+## 打包 Mark11
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-python -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark9Final `
+python -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark11Final `
   --exclude-module torch --exclude-module cupy --exclude-module scipy --exclude-module matplotlib --exclude-module pandas `
   --exclude-module numba --exclude-module llvmlite --exclude-module pyarrow --exclude-module onnxruntime `
-  --exclude-module tensorflow --exclude-module sklearn --exclude-module imageio_ffmpeg --exclude-module tables Mark9.py
+  --exclude-module tensorflow --exclude-module sklearn --exclude-module imageio_ffmpeg --exclude-module tables Mark11.py
 ```
 
 输出位置：
 
 ```text
-dist\Mark9Final.exe
+dist\Mark11Final.exe
 ```
 
 ## 打包前检查
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile Mark9.py pdf_decryptor\core.py
+.\.venv\Scripts\python.exe -m py_compile Mark11.py pdf_decryptor\core.py
 .\.venv\Scripts\python.exe -c "import fitz, cv2, numpy, PIL, tkinterdnd2, pikepdf; print('deps ok')"
 .\.venv\Scripts\python.exe -m PyInstaller --version
 ```
@@ -153,14 +168,14 @@ dist\Mark9Final.exe
 如果 EXE 又异常变大，检查：
 
 ```text
-build\Mark9Final\PKG-00.toc
+build\Mark11Final\PKG-00.toc
 ```
 
 如果里面出现 `torch`、`cupy`、`cublas`、`pyarrow`、`onnxruntime` 等，说明又混入了不需要的大型依赖，需要回到 `.venv` 重新打包。
 
 ## 维护建议
 
-- 新版本从上一版复制，例如 `Mark8.py` -> `Mark9.py`。
+- 新版本从上一版复制，例如 `Mark9.py` -> `Mark10.py`。
 - 每次新增版本或修改主要功能时，同时更新 `Readme.md` 和 `AGENTS.md`。
 - 不直接覆盖旧版。
 - 打包时使用 `python -m PyInstaller`，不要直接用 `pyinstaller`。
