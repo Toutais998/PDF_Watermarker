@@ -1,5 +1,5 @@
 PyMuPDF
-opencv-python
+opencv-python-headless
 numpy
 Pillow
 tkinterdnd2

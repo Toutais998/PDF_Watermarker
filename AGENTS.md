@@ -38,7 +38,7 @@ python -m pip install -r requirements.txt
 Run the current application with:
 
 ```powershell
-python Mark10.py
+python Mark11.py
 ```
 
 ## Validation
@@ -46,7 +46,7 @@ python Mark10.py
 Before handing off Python changes, run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile Mark10.py pdf_decryptor\core.py
+.\.venv\Scripts\python.exe -m py_compile Mark11.py pdf_decryptor\core.py
 ```
 
 When changing watermark detection or removal, validate against a representative
@@ -76,6 +76,15 @@ Build the current Mark11 Windows executable with:
 
 ```powershell
 .\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark11Final Mark11.py
+```
+
+The dependencies are installed from `requirements.txt`, which uses
+`opencv-python-headless` (no cv2 GUI/video features are used). To reproduce the
+optimized ~63 MiB build, use the local `Mark11Final.spec` (it filters out the
+unused `opencv_videoio_ffmpeg` video DLL) together with UPX on PATH:
+
+```powershell
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --upx-dir "C:\path\to\upx\win64" Mark11Final.spec
 ```
 
 The generated `build/`, `dist/`, and `*.spec` files are local build artifacts.
@@ -146,3 +155,6 @@ They must remain ignored by Git and must not be committed.
   explains that displayed-but-uncopyable text requires external OCR (Tesseract
   with Chinese language data); the original glyph encoding cannot be losslessly
   reconstructed from the PDF alone.
+- Mark11's bundled EXE was slimmed from ~98 MiB to ~63 MiB by switching to
+  `opencv-python-headless`, dropping the unused `opencv_videoio_ffmpeg` video
+  DLL in `Mark11Final.spec`, and compressing binaries with UPX `--lzma`.
