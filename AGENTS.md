@@ -8,12 +8,12 @@ Tkinter, PyMuPDF, OpenCV, NumPy, Pillow, tkinterdnd2, and pikepdf/libqpdf.
 
 ## Source Files
 
-- `Mark11.py` is the current improved implementation.
+- `Mark12.py` is the current improved implementation.
 - `Mark10.py` is the previous improved implementation.
 - `Mark9.py` is the previous improved implementation.
 - `Mark8.py` is the earlier improved implementation.
 - `pdf_decryptor/` is the independent, password-supplied PDF decryption module
-  used before Mark11 opens a document with PyMuPDF.
+  used before Mark12 opens a document with PyMuPDF.
 - `Mark6.py` is the previous improved implementation.
 - `Mark5.py` is the previous stable implementation.
 - `Mark1.py` through `Mark4.py` are historical versions and should be
@@ -38,7 +38,7 @@ python -m pip install -r requirements.txt
 Run the current application with:
 
 ```powershell
-python Mark11.py
+python Mark12.py
 ```
 
 ## Validation
@@ -46,7 +46,7 @@ python Mark11.py
 Before handing off Python changes, run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile Mark11.py pdf_decryptor\core.py
+.\.venv\Scripts\python.exe -m py_compile Mark12.py pdf_decryptor\core.py
 ```
 
 When changing watermark detection or removal, validate against a representative
@@ -72,19 +72,17 @@ Build the previous Mark10 Windows executable with:
 .\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark10Final Mark10.py
 ```
 
-Build the current Mark11 Windows executable with:
+Build the current Mark12 Windows executable with:
 
 ```powershell
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark11Final Mark11.py
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark12Final Mark12.py
 ```
 
 The dependencies are installed from `requirements.txt`, which uses
-`opencv-python-headless` (no cv2 GUI/video features are used). To reproduce the
-optimized ~63 MiB build, use the local `Mark11Final.spec` (it filters out the
+optimized ~63 MiB build, use the local `Mark12Final.spec` (it filters out the
 unused `opencv_videoio_ffmpeg` video DLL) together with UPX on PATH:
 
-```powershell
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --upx-dir "C:\path\to\upx\win64" Mark11Final.spec
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --upx-dir "C:\path\to\upx\win64" Mark12Final.spec
 ```
 
 The generated `build/`, `dist/`, and `*.spec` files are local build artifacts.
@@ -93,6 +91,7 @@ They must remain ignored by Git and must not be committed.
 ## Git and Repository Rules
 
 - Commit core source code, documentation, icons, and `requirements.txt`.
+- Every conversation that ends with a new version of the Python code must be followed by compiling it and pushing the core code to git.
 - Do not commit `.venv/`, `build/`, `dist/`, `*.spec`, Python caches, test
   PDFs, temporary preview files, or IDE configuration.
 - Keep changes focused and preserve existing historical versions.
@@ -157,4 +156,4 @@ They must remain ignored by Git and must not be committed.
   reconstructed from the PDF alone.
 - Mark11's bundled EXE was slimmed from ~98 MiB to ~63 MiB by switching to
   `opencv-python-headless`, dropping the unused `opencv_videoio_ffmpeg` video
-  DLL in `Mark11Final.spec`, and compressing binaries with UPX `--lzma`.
+- Mark12 now treats large background images as direct XObject removals and skips rendered-diagonal pixel scanning on those pages, which keeps Test6-style previews much faster without changing the other watermark paths.

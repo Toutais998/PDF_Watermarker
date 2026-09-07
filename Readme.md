@@ -1,11 +1,11 @@
-# PDF 水印去除工具（Mark11）
+# PDF 水印去除工具（Mark12）
 
 ## 当前版本
 
-- 推荐源码：`Mark11.py`
+- 推荐源码：`Mark12.py`
 - 上一版：`Mark10.py`
 - 图标文件：`pdf_tool_icon.ico`
-- 本地 EXE：`dist\Mark11Final.exe`（构建产物不纳入 Git）
+- 本地 EXE：`dist\Mark12Final.exe`（构建产物不纳入 Git）
 
 ## Git 同步范围
 
@@ -30,13 +30,13 @@ python -m pip install -r requirements.txt
 之后即可在本地运行源码或重新生成 `build/`、`dist/`：
 
 ```powershell
-python Mark11.py
+python Mark12.py
 ```
 
 直接运行当前版本源码：
 
 ```powershell
-python Mark11.py
+python Mark12.py
 ```
 
 ## 版本更新记录
@@ -106,12 +106,12 @@ python Mark11.py
 - 保存清理级别由耗时的全局重复对象合并调整为无用对象清理。测试中 Test4 完整识别约 3.1 秒，移除加保存约 0.6 秒；Test5 识别约 0.04 秒，移除加保存约 0.09 秒（具体时间随电脑而异）。
 - 所有去水印预览和最终输出均显式使用 `PDF_ENCRYPT_NONE` 保存，并在写入后再次检查；若仍存在密码或保护则拒绝报告保存成功。
 
-### Mark11 —— Test4 资源瘦身与文本编码诊断（当前版本）
+### Mark12 —— 大面积背景图直删与预览加速（当前版本）
 
 - Test4 体积大的主要原因不是水印图片，而是 224 页中约 2,124 个独立嵌入字体程序、数万个对象和大量重复小内容流；去除水印后使用 `garbage=4`、`clean=1`、`use_objstms=1`、`deflate=True` 深度回收未引用资源。该模式不把正文栅格化，实测 Test4 仅重新保存即可从约 15.96 MB 降至约 13.47 MB（具体大小随 PDF 内容变化）。
-- Test4 的字体使用 FzBookMaker 自定义 `/Gxx` 编码，许多字体没有有效 `ToUnicode` 映射，因此阅读器能按字形显示但复制得到乱码。这是源 PDF 已丢失 Unicode 映射，无法通过改保存参数无损反推；Mark11 打开和保存时会明确诊断并提示需要 Tesseract 中文语言包进行 OCR 重建文本层。
-- Mark11 保存结果继续强制移除密码和权限保护，并在写入后验证。
-
+- Test4 的字体使用 FzBookMaker 自定义 `/Gxx` 编码，许多字体没有有效 `ToUnicode` 映射，因此阅读器能按字形显示但复制得到乱码。这是源 PDF 已丢失 Unicode 映射，无法通过改保存参数无损反推；Mark12 打开和保存时会明确诊断并提示需要 Tesseract 中文语言包进行 OCR 重建文本层。
+- Mark12 保存结果继续强制移除密码和权限保护，并在写入后验证。
+- 对于页面上的大面积背景图水印，Mark12 现在会直接按图像 XObject 删除引用，并跳过该页的渲染像素级斜向检测，像 Test6 这种包含整幕背景图的 PDF 预览会快很多。
 ## 推荐操作
 
 自动处理：
@@ -131,64 +131,45 @@ python Mark11.py
 4. 选择是否扫描全部页面同位置。
 5. 点击“预览去除效果”并保存。
 
-## 本次打包结果（Mark11）
 
-当前 `dist\Mark11Final.exe` 约 **62.5 MiB**（上一版约 97.9 MiB，缩小约 36%）。体积优化由以下措施叠加完成：
+## 本次打包结果（Mark12）
 
-1. 依赖改用 `opencv-python-headless`：本程序只调用 cv2 的图像处理接口，不使用 GUI/视频功能，因此不再安装带 Qt 高层的常规版 opencv。
-2. 剔除未使用的视频插件：`cv2` 自带约 29 MiB 的 `opencv_videoio_ffmpeg500_64.dll` 仅用于视频读/写，程序从不调用，已在 spec 打包清单中过滤。
+当前 `dist\Mark12Final.exe` 约 **62.5 MiB**（上一版约 97.9 MiB，缩小约 36%）。体积优化由以下措施叠加完成：
+
+1. 依赖改用 `opencv-python-headless`：本程序只调用 cv2 的图像处理接口，不使用 GUI/视频功能，因此不再安装带 Qt 高层的普通版 opencv。
+2. 剔除未使用的视频插件：cv2 自带约 29 MiB 的 `opencv_videoio_ffmpeg500_64.dll` 仅用于视频读/写，程序从不调用，已在 spec 打包清单过滤。
 3. UPX `--lzma` 压缩：对 `python314.dll`、`cv2.pyd`、PyMuPDF 原生库、tcl/tk、qpdf 等可执行文件与 DLL 做运行时自解压压缩。
 
-打包后冒烟测试通过：`dist\Mark11Final.exe` 可正常启动并保持运行。
+打包后冒烟测试通过：`dist\Mark12Final.exe` 可正常启动并保持运行。
 
-更早的 `Mark9Final.exe` 曾约 97 MiB；`Mark5Final.exe` 达到约 1.3GB，是因为用全局 Python 打包时误收进了 `torch`、CUDA、`cupy`、`pyarrow`、`onnxruntime`、`scipy`、`pandas` 等大型依赖。
+对于页面上的大面积背景图水印，Mark12 现在会直接按图像 XObject 删除引用，并跳过该页的渲染像素级斜向检测，像 Test6 这种包含整幕背景图的 PDF 预览会快很多。
 
-这些库本项目不需要。
-建议始终使用项目内 `.venv` 打包，并按本文件 `requirements.txt` 使用 `opencv-python-headless`。
+## 打包 Mark12
 
-## 打包 Mark11
-
-体积优化依赖本地 `Mark11Final.spec`（其中写入了排除 `opencv_videoio_ffmpeg` 的过滤逻辑；`*.spec` 是被忽略的本地构建文件，不入库），并在 PATH 中提供 UPX：
+体积优化依赖本地 `Mark12Final.spec`（其中写入了排除 `opencv_videoio_ffmpeg` 的过滤逻辑；`*.spec` 是被忽略的本地构建文件，不入库），并在 PATH 中提供 UPX：
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 # 将 upx 所在目录加入 PATH 后执行；不加 UPX 时去掉 --upx-dir 即可
-python -m PyInstaller --noconfirm --clean --upx-dir "UPX所在目录" Mark11Final.spec
+python -m PyInstaller --noconfirm --clean --upx-dir "UPX所在目录" Mark12Final.spec
 ```
 
 不依赖 spec 的原生命令（不带 ffmpeg 过滤与 UPX）：
 
 ```powershell
-python -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark11Final Mark11.py
+python -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark12Final Mark12.py
 ```
 
 输出位置：
 
 ```text
-dist\Mark11Final.exe
+dist\Mark12Final.exe
 ```
 
-## 打包前检查
+打包前检查：
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile Mark11.py pdf_decryptor\core.py
+.\.venv\Scripts\python.exe -m py_compile Mark12.py pdf_decryptor\core.py
 .\.venv\Scripts\python.exe -c "import fitz, cv2, numpy, PIL, tkinterdnd2, pikepdf; print('deps ok')"
 .\.venv\Scripts\python.exe -m PyInstaller --version
 ```
-
-如果 EXE 又异常变大，检查：
-
-```text
-build\Mark11Final\PKG-00.toc
-```
-
-如果里面出现 `torch`、`cupy`、`cublas`、`pyarrow`、`onnxruntime` 等，说明又混入了不需要的大型依赖，需要回到 `.venv` 重新打包。
-
-## 维护建议
-
-- 新版本从上一版复制，例如 `Mark9.py` -> `Mark10.py`。
-- 每次新增版本或修改主要功能时，同时更新 `Readme.md` 和 `AGENTS.md`。
-- 不直接覆盖旧版。
-- 打包时使用 `python -m PyInstaller`，不要直接用 `pyinstaller`。
-- 优先使用 `.venv`，不要用装了大量科学计算/AI 包的全局 Python。
-- 打包后只需要分发 `dist\xxx.exe`。

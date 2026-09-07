@@ -405,7 +405,7 @@ class VectorCandidate:
 class PDFWatermarkRemover:
     def __init__(self, master):
         self.master = master
-        self.master.title("PDF 水印去除工具 Mark11")
+        self.master.title("PDF 水印去除工具 Mark12")
         self.master.geometry("1280x820")
         self.master.configure(bg=MAIN_BG)
 
@@ -2190,7 +2190,7 @@ class PDFWatermarkRemover:
                 return folder
         raise RuntimeError(
             "未找到 Tesseract 的 chi_sim.traineddata 和 eng.traineddata。"
-            "请安装 Tesseract 中文语言包，或把两个文件放入 Mark11.py 同目录的 tessdata 文件夹。"
+            "请安装 Tesseract 中文语言包，或把两个文件放入 Mark12.py 同目录的 tessdata 文件夹。"
         )
 
     def _save_ocr_searchable_pdf(self, input_path: str, output_path: str):
