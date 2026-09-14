@@ -1,11 +1,28 @@
-# PDF 水印去除工具（Mark12）
+# PDF 水印去除工具（Mark12，Windows / macOS）
 
 ## 当前版本
 
-- 推荐源码：`Mark12.py`
-- 上一版：`Mark10.py`
+- 统一入口：`Mark12.py`
+- 当前实现：`pdf_watermarker/`
+- 上一版单文件实现：`Mark11.py`
 - 图标文件：`pdf_tool_icon.ico`
 - 本地 EXE：`dist\Mark12Final.exe`（构建产物不纳入 Git）
+- 本地 Mac 应用：`dist/Mark12Mac.app`（Apple Silicon 构建产物，不纳入 Git）
+
+Mark12 已在 Apple Silicon、macOS 26.6.2、Python 3.14.7 上完成源码和 `.app`
+冒烟测试。Windows 与 macOS 共用入口和业务模块，没有引入仅限 macOS 的运行依赖。
+
+## 代码结构
+
+- `Mark12.py`：稳定的跨平台启动入口。
+- `pdf_watermarker/app.py`：Tkinter 界面、文件与预览会话管理。
+- `pdf_watermarker/detection.py`：文本、图片、矢量、显式水印及 ROI 检测。
+- `pdf_watermarker/processing.py`：水印移除、无加密保存和 OCR 输出。
+- `pdf_watermarker/content_stream.py`：PDF 内容流解析与浅色矢量过滤。
+- `pdf_watermarker/geometry.py`：画布/PDF 坐标和多边形辅助函数。
+- `pdf_watermarker/models.py`、`constants.py`：共享模型与常量。
+- `pdf_decryptor/`：基于 `pikepdf/libqpdf` 的已知密码或空密码解密。
+- `tests/`：不依赖外部测试 PDF 的回归测试。
 
 ## Git 同步范围
 
@@ -15,11 +32,11 @@
 
 - `.venv/`、`venv/`：Python 虚拟环境
 - `build/`：PyInstaller 构建临时文件
-- `dist/`：PyInstaller 编译生成的 EXE 文件
+- `dist/`：PyInstaller 编译生成的 EXE 或 `.app`
 - `*.spec`、`__pycache__/`：打包配置和 Python 缓存
 - 其他测试缓存、IDE 配置和本地环境文件
 
-在其他电脑上 clone 项目后，需要先创建虚拟环境并安装依赖：
+Windows 安装和运行：
 
 ```powershell
 python -m venv .venv
@@ -27,16 +44,24 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-之后即可在本地运行源码或重新生成 `build/`、`dist/`：
-
 ```powershell
 python Mark12.py
 ```
 
-直接运行当前版本源码：
+macOS 安装和运行（Homebrew Python 需要同时具备 Tk）：
 
-```powershell
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 python Mark12.py
+```
+
+运行回归测试：
+
+```bash
+.venv/bin/python -m py_compile Mark12.py pdf_watermarker/*.py pdf_decryptor/*.py
+.venv/bin/python -m unittest discover -v
 ```
 
 ## 版本更新记录
@@ -112,6 +137,10 @@ python Mark12.py
 - Test4 的字体使用 FzBookMaker 自定义 `/Gxx` 编码，许多字体没有有效 `ToUnicode` 映射，因此阅读器能按字形显示但复制得到乱码。这是源 PDF 已丢失 Unicode 映射，无法通过改保存参数无损反推；Mark12 打开和保存时会明确诊断并提示需要 Tesseract 中文语言包进行 OCR 重建文本层。
 - Mark12 保存结果继续强制移除密码和权限保护，并在写入后验证。
 - 对于页面上的大面积背景图水印，Mark12 现在会直接按图像 XObject 删除引用，并跳过该页的渲染像素级斜向检测，像 Test6 这种包含整幕背景图的 PDF 预览会快很多。
+- 将原 2,586 行单文件拆为可维护的 `pdf_watermarker` 包；`Mark12.py` 保留为 7 行兼容入口，Windows 原打包命令仍然有效。
+- 依赖导入改为官方 `pymupdf` 模块名，并新增关键词检测、普通去水印、已知密码、错误密码、空用户密码五项自动化回归测试。
+- macOS 使用与 Windows 相同的业务代码；`tkinterdnd2`、`pikepdf/libqpdf` 和 OpenCV 均由 PyInstaller 收集到应用包中。
+
 ## 推荐操作
 
 自动处理：
@@ -132,7 +161,7 @@ python Mark12.py
 5. 点击“预览去除效果”并保存。
 
 
-## 本次打包结果（Mark12）
+## Windows 打包
 
 当前 `dist\Mark12Final.exe` 约 **62.5 MiB**（上一版约 97.9 MiB，缩小约 36%）。体积优化由以下措施叠加完成：
 
@@ -143,8 +172,6 @@ python Mark12.py
 打包后冒烟测试通过：`dist\Mark12Final.exe` 可正常启动并保持运行。
 
 对于页面上的大面积背景图水印，Mark12 现在会直接按图像 XObject 删除引用，并跳过该页的渲染像素级斜向检测，像 Test6 这种包含整幕背景图的 PDF 预览会快很多。
-
-## 打包 Mark12
 
 体积优化依赖本地 `Mark12Final.spec`（其中写入了排除 `opencv_videoio_ffmpeg` 的过滤逻辑；`*.spec` 是被忽略的本地构建文件，不入库），并在 PATH 中提供 UPX：
 
@@ -169,7 +196,26 @@ dist\Mark12Final.exe
 打包前检查：
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile Mark12.py pdf_decryptor\core.py
-.\.venv\Scripts\python.exe -c "import fitz, cv2, numpy, PIL, tkinterdnd2, pikepdf; print('deps ok')"
+.\.venv\Scripts\python.exe -m compileall -q Mark12.py pdf_watermarker pdf_decryptor tests
+.\.venv\Scripts\python.exe -c "import pymupdf, cv2, numpy, PIL, tkinterdnd2, pikepdf; print('deps ok')"
 .\.venv\Scripts\python.exe -m PyInstaller --version
 ```
+
+## macOS 打包
+
+在 Mac 本机执行：
+
+```bash
+source .venv/bin/activate
+python -m PyInstaller --noconfirm --clean --windowed --onedir \
+  --name Mark12Mac \
+  --icon pdf_tool_icon.ico \
+  --osx-bundle-identifier com.toutais.pdfwatermarker \
+  Mark12.py
+```
+
+输出为 `dist/Mark12Mac.app`。当前本地构建为 Apple Silicon `arm64`，不能直接在
+Intel Mac 上运行；Intel Mac 应在 Intel Python 环境中重新构建。应用目前是
+PyInstaller 临时签名（ad-hoc），本机可运行；若要分发给其他用户，需要使用 Apple
+Developer ID 签名并公证。`build/`、`dist/` 与生成的 `*.spec` 均已忽略，不影响
+Windows 源码或打包流程。
