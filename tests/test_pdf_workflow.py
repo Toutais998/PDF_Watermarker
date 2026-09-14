@@ -13,6 +13,7 @@ from pdf_decryptor import (
 )
 from pdf_watermarker.app import PDFWatermarkRemover
 from pdf_watermarker.models import WatermarkInfo
+from pdf_watermarker.version import APP_DISPLAY_NAME, APP_VERSION
 
 
 class PdfWorkflowTests(unittest.TestCase):
@@ -46,6 +47,10 @@ class PdfWorkflowTests(unittest.TestCase):
                 ),
             )
         return target
+
+    def test_current_version(self):
+        self.assertEqual(APP_VERSION, 13)
+        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark13")
 
     def test_text_redaction_saves_an_unencrypted_pdf(self):
         source = self._plain_pdf()

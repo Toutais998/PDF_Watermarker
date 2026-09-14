@@ -1,221 +1,131 @@
-# PDF 水印去除工具（Mark12，Windows / macOS）
+# PDF 水印去除工具（Mark13）
 
-## 当前版本
+Mark13 是当前唯一保留的版本，支持 Windows 与 macOS。工具用于合法持有的 PDF：
+输入已知密码或空密码解除加密/权限保护，并检测、预览和删除文本、图片、矢量及
+PDF 内置水印对象。程序不会猜测或破解未知密码。
 
-- 统一入口：`Mark12.py`
-- 当前实现：`pdf_watermarker/`
-- 上一版单文件实现：`Mark11.py`
-- 图标文件：`pdf_tool_icon.ico`
-- 本地 EXE：`dist\Mark12Final.exe`（构建产物不纳入 Git）
-- 本地 Mac 应用：`dist/Mark12Mac.app`（Apple Silicon 构建产物，不纳入 Git）
+## 项目结构
 
-Mark12 已在 Apple Silicon、macOS 26.6.2、Python 3.14.7 上完成源码和 `.app`
-冒烟测试。Windows 与 macOS 共用入口和业务模块，没有引入仅限 macOS 的运行依赖。
+```text
+PDFWaterMarker/
+├── Mark13.py                     # 当前跨平台入口
+├── pdf_watermarker/              # GUI、检测、移除及共享业务代码
+├── pdf_decryptor/                # pikepdf/libqpdf 解密模块
+├── assets/pdf_tool_icon.ico      # Windows/macOS 打包图标源文件
+├── scripts/
+│   ├── build_macos.sh            # macOS .app 构建
+│   ├── build_windows.ps1         # Windows EXE 构建
+│   └── generate_icon.py          # 图标生成工具
+├── tests/                        # 自包含回归测试
+├── requirements.txt
+├── Readme.md
+└── AGENTS.md
+```
 
-## 代码结构
+`pdf_watermarker/` 内部按职责拆分：
 
-- `Mark12.py`：稳定的跨平台启动入口。
-- `pdf_watermarker/app.py`：Tkinter 界面、文件与预览会话管理。
-- `pdf_watermarker/detection.py`：文本、图片、矢量、显式水印及 ROI 检测。
-- `pdf_watermarker/processing.py`：水印移除、无加密保存和 OCR 输出。
-- `pdf_watermarker/content_stream.py`：PDF 内容流解析与浅色矢量过滤。
-- `pdf_watermarker/geometry.py`：画布/PDF 坐标和多边形辅助函数。
-- `pdf_watermarker/models.py`、`constants.py`：共享模型与常量。
-- `pdf_decryptor/`：基于 `pikepdf/libqpdf` 的已知密码或空密码解密。
-- `tests/`：不依赖外部测试 PDF 的回归测试。
+- `app.py`：Tkinter UI、文件导入、预览及会话生命周期。
+- `detection.py`：文本、图片、矢量、显式水印及 ROI 检测。
+- `processing.py`：水印移除、无加密保存和可选 OCR 输出。
+- `content_stream.py`：PDF 内容流解析和浅色矢量过滤。
+- `geometry.py`：画布/PDF 坐标与多边形运算。
+- `models.py`、`constants.py`、`version.py`：共享模型、常量和版本号。
 
-## Git 同步范围
+## 为什么需要 OpenCV
 
-本项目只通过 Git 同步核心源码、图标、说明文档和 `requirements.txt`。
+OpenCV 不参与 PDF 密码解锁。解锁由 `pikepdf/libqpdf` 完成；OpenCV 只服务于
+“看渲染结果找水印”的检测路径：
 
-以下内容属于本地开发或编译生成文件，不是核心代码，不会同步到 GitHub：
+- 灰度转换和浅色像素阈值分割；
+- 形态学去噪和连通区域统计；
+- 斜向浅灰水印带检测；
+- 手动 ROI 的模糊、缩放、掩膜和跨页模板相似度比较。
 
-- `.venv/`、`venv/`：Python 虚拟环境
-- `build/`：PyInstaller 构建临时文件
-- `dist/`：PyInstaller 编译生成的 EXE 或 `.app`
-- `*.spec`、`__pycache__/`：打包配置和 Python 缓存
-- 其他测试缓存、IDE 配置和本地环境文件
+如果删除 OpenCV，上述像素级检测和没有明确 PDF 对象标记时的视觉兜底需要重写，
+仅 PDF 解锁、文本对象和显式 XObject 水印处理则不依赖它。项目使用的是
+`opencv-python-headless`，不包含 OpenCV 自己的 GUI，但 macOS wheel 仍链接较多
+图像/视频编解码动态库。
 
-Windows 安装和运行：
+## 为什么 macOS 安装包较大
+
+本机 Apple Silicon 构建展开后约 221 MB，其中 `Contents/Frameworks` 约 208 MB。
+主要占用如下（文件系统统计为近似值）：
+
+| 组件 | 约占用 | 用途 |
+|---|---:|---|
+| OpenCV (`cv2`) | 118 MB | 像素级检测；其中主二进制约 40 MB、关联动态库约 78 MB |
+| PyMuPDF | 46 MB | PDF 打开、渲染、对象编辑、redaction 和保存 |
+| lxml | 8.7 MB | pikepdf 的 XML/XMP 元数据依赖 |
+| Pillow | 7.9 MB | 页面预览、Tk 图像和图标处理 |
+| NumPy | 7.1 MB | 像素矩阵和数值计算 |
+| Python 3.14 运行时 | 约 11 MB | 独立运行所需解释器和标准扩展 |
+| pikepdf/libqpdf | 约 6-7 MB | PDF 加密检查及授权解密 |
+| Tcl/Tk 与资源 | 约 6 MB | 桌面 GUI 和拖放 |
+
+最大来源是 OpenCV。macOS 的 `cv2` 目录内还包含 FFmpeg、AV1、H.26x、OpenEXR、
+JPEG XL 等链接库；即使本程序不调用视频接口，动态链接关系也使得直接删库可能导致
+`cv2` 整体无法载入。PyInstaller 的 `.app` 是依赖展开目录，不能拿压缩下载包大小
+直接比较。PyInstaller 本身只是构建工具，不会被整体装进最终应用。
+
+## 安装与运行
+
+Windows PowerShell：
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+python Mark13.py
 ```
 
-```powershell
-python Mark12.py
-```
-
-macOS 安装和运行（Homebrew Python 需要同时具备 Tk）：
+macOS：
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-python Mark12.py
+python Mark13.py
 ```
 
-运行回归测试：
+## 测试
+
+每次修改后必须对当前源码重新运行，不能沿用旧版本测试结论：
 
 ```bash
-.venv/bin/python -m py_compile Mark12.py pdf_watermarker/*.py pdf_decryptor/*.py
+.venv/bin/python -m compileall -q Mark13.py pdf_watermarker pdf_decryptor tests
 .venv/bin/python -m unittest discover -v
 ```
 
-## 版本更新记录
+测试覆盖关键词水印检测、文本水印移除及正文保留、已知密码解锁、错误/缺失密码
+拒绝、空用户密码解锁，以及输出 PDF 无加密验证。
 
-每个版本的更新内容、新增功能以及所用的实现办法：
+## 构建
 
-### Mark1 —— 初版
-
-- 功能：关键词/边缘文本水印检测、图片水印检测、手动矩形选区、去除时用白色擦除。
-- 办法：遍历文本块匹配关键词、按页面边缘判定；图片按 xref 处理；用矩形 redact 注解白填覆盖。
-
-### Mark2 —— 检测增强
-
-- 功能：改进关键词与边缘文本检测逻辑，新增跨页重复内容聚合，去除逻辑更稳定。
-- 办法：按相对位置把跨页重复的文本/图形聚合为同一水印候选。
-
-### Mark3 —— 图形水印与交互升级
-
-- 功能：文本/图形双 Tab 候选列表；tkinterdnd2 拖拽导入；斜框选区；矢量图形检测；重复图形按指纹+位置聚合；选区分析可扫描全部页面的同位置重复图形。
-- 办法：`get_drawings()` 生成路径指纹（类型/宽度/颜色/路径前缀）并跨页聚合；ROI 模板灰度匹配评分定位重复图形。
-
-### Mark4 —— 预览与保存
-
-- 功能：去除预览（生成临时 PDF 并载入预览）、保存当前结果、返回原文件。
-- 办法：把去水印操作写入临时文件再打开预览；图片按 xref 删除引用 + 文本用局部 redaction 白填。
-
-### Mark5 —— 浅色矢量与视觉兜底
-
-- 功能：大面积浅色/半透明矢量识别（soft vector）、黑色边缘细框识别、选区视觉像素兜底、矢量用白多边形覆盖。
-- 办法：用颜色亮度阈值（luminance）判定浅色矢量；对选区渲染灰度图做暗像素/对比度评分作为无对象层时的兜底。
-
-### Mark6 —— 斜向浅灰水印（沪江风格）
-
-- 功能：新增渲染像素级斜向水印检测（`_find_rendered_diagonal_watermarks`）；从内容流剥离 Pattern 型斜向水印（`_remove_rendered_diagonal_pattern`）。
-- 办法：渲染灰度图 + 连通域 + 硬编码对角线距离过滤；内容流前缀含 `/Pattern scn f*` 时整段裁剪。
-
-### Mark7 —— 二维码/背景图片与批量导入
-
-- 功能：底部重复二维码图片、底部“扫一扫”说明文字、右侧新东方在线背景图；支持多选 PDF、递归导入文件夹、批量文件下拉浏览结果。
-- 办法：重复图片按指纹+相对位置聚合；图片去除改为按页面删除引用，避免清空图片流后留黑块；批量文件顺序分析并缓存结果。
-
-### Mark8 —— 斜向量水印安全去除
-
-- 功能：
-  1. 修复 Test-3 斜置浅灰“沪江德语”矢量水印：不再用整块白色矩形覆盖，而是直接删除页面内容流中落在选区内的浅色/半透明矢量路径，正文不再被大面积擦除。
-  2. 兜底方案：内容流解析未命中时，只对选区内的浅色水印像素做小方格 redaction，暗色正文像素完全避开。
-  3. 关键词文本检测收敛：仅当关键词命中且位于页面边缘或文字旋转时才判为水印，正文中恰好包含品牌词（如 Hujiang）的行不再被误删。
-  4. 渲染斜向检测自动拟合主对角线方向并聚类平行带，不再依赖硬编码斜率/截距；页面已有矢量水印命中时跳过该检测。
-- 办法：自研 PDF 内容流迷你解析器，tokenize 路径算子（`m/l/c/v/y/re/h` 与 `f/f*/B/B*/b/b*`）并跟踪图形状态（`q/Q` 保存恢复、`g/rg/k/scn` 颜色、`gs` 透明度、`cm` 变换矩阵），计算每个填充路径的包围盒（底部原点坐标翻转为顶部原点）并与目标矩形判定相交；凡浅色（亮度≥0.5）或半透明（alpha<0.9）的填充路径即删除。重建内容流时只切掉对应字节区间，其余内容原样保留。
-- 验证：Test-3 全 321 页逐页比对提取文本为 0 处差异；斜向水印带内的浅色像素占比从 16% 降至约 1%，正文暗色像素保留率 99% 以上。
-
-### Mark9 —— 加密 PDF 授权解密
-
-- 在创建 PyMuPDF 文档和分析水印之前，先通过项目内 `pdf_decryptor` 模块检查 PDF 加密字典。
-- 加密文件使用调用方提供的合法用户密码或所有者密码解密；空用户密码文件自动处理，非空密码通过隐藏输入框输入，密码错误可重试。
-- 解密模块基于 pikepdf/libqpdf，只尝试给定密码，不包含暴力破解、字典攻击或未知密码恢复。
-- 解密到会话级临时 PDF，经“未加密 + 页数一致”验证后再交给 Mark9 分析；原 PDF 不修改，程序退出时删除临时文件。
-- 批量文件和重新选择文件时复用同一个已验证的临时副本，避免重复解密和对象编号变化。
-- 支持 RC4 40/128 位、AES-128-CBC、AES-256-CBC（R=5/6）；qpdf 不支持的安全处理器会明确报错。
-
-### Mark10 —— 内置水印对象与性能修复
-
-- 新增标准 `/Subtype /Watermark` Artifact 和生产器 `/Private /Watermark` 标记识别。Test4 中受可选内容层控制、仅出现在偶数页的“上海同济大学”图片水印，即使 `get_image_rects()` 返回空也能识别并按页删除；Test5 的重复斜向 Form XObject 水印直接删除内容流调用，不再依赖像素擦除。
-- 普通图片扫描改用页面实际显示的图片信息，并过滤 PDF 生成器用于线条/底色的 1x1、1xN 微型图片。避免 Test4 的 92,848 个资源引用被重复展开为约 65 万个候选。
-- 页面存在明确 Watermark Artifact 时跳过整页 OpenCV 斜向检测，并排除已经由对象级候选覆盖的旋转文字候选；浅色判断改为真实 RGB 亮度，避免把正文红色标题误判为浅色边缘水印。
-- 移除阶段预先按页索引候选，图片/Form 只删除当前页精确的 `/Name Do` 调用；浅色像素兜底改为一次性提交 redaction，避免逐小块反复重写页面。
-- 保存清理级别由耗时的全局重复对象合并调整为无用对象清理。测试中 Test4 完整识别约 3.1 秒，移除加保存约 0.6 秒；Test5 识别约 0.04 秒，移除加保存约 0.09 秒（具体时间随电脑而异）。
-- 所有去水印预览和最终输出均显式使用 `PDF_ENCRYPT_NONE` 保存，并在写入后再次检查；若仍存在密码或保护则拒绝报告保存成功。
-
-### Mark12 —— 大面积背景图直删与预览加速（当前版本）
-
-- Test4 体积大的主要原因不是水印图片，而是 224 页中约 2,124 个独立嵌入字体程序、数万个对象和大量重复小内容流；去除水印后使用 `garbage=4`、`clean=1`、`use_objstms=1`、`deflate=True` 深度回收未引用资源。该模式不把正文栅格化，实测 Test4 仅重新保存即可从约 15.96 MB 降至约 13.47 MB（具体大小随 PDF 内容变化）。
-- Test4 的字体使用 FzBookMaker 自定义 `/Gxx` 编码，许多字体没有有效 `ToUnicode` 映射，因此阅读器能按字形显示但复制得到乱码。这是源 PDF 已丢失 Unicode 映射，无法通过改保存参数无损反推；Mark12 打开和保存时会明确诊断并提示需要 Tesseract 中文语言包进行 OCR 重建文本层。
-- Mark12 保存结果继续强制移除密码和权限保护，并在写入后验证。
-- 对于页面上的大面积背景图水印，Mark12 现在会直接按图像 XObject 删除引用，并跳过该页的渲染像素级斜向检测，像 Test6 这种包含整幕背景图的 PDF 预览会快很多。
-- 将原 2,586 行单文件拆为可维护的 `pdf_watermarker` 包；`Mark12.py` 保留为 7 行兼容入口，Windows 原打包命令仍然有效。
-- 依赖导入改为官方 `pymupdf` 模块名，并新增关键词检测、普通去水印、已知密码、错误密码、空用户密码五项自动化回归测试。
-- macOS 使用与 Windows 相同的业务代码；`tkinterdnd2`、`pikepdf/libqpdf` 和 OpenCV 均由 PyInstaller 收集到应用包中。
-
-## 推荐操作
-
-自动处理：
-
-1. 打开或拖入 PDF。
-2. 点击“分析水印”。
-3. 在“文本水印 / 图形水印”中确认候选。
-4. 点击“预览去除效果”。
-5. 检查预览结果。
-6. 满意后点击“保存当前结果”。
-
-手动处理：
-
-1. 翻到有水印的页面。
-2. 用“矩形”或“斜框”框选水印。
-3. 点击“分析所选区域”。
-4. 选择是否扫描全部页面同位置。
-5. 点击“预览去除效果”并保存。
-
-
-## Windows 打包
-
-当前 `dist\Mark12Final.exe` 约 **62.5 MiB**（上一版约 97.9 MiB，缩小约 36%）。体积优化由以下措施叠加完成：
-
-1. 依赖改用 `opencv-python-headless`：本程序只调用 cv2 的图像处理接口，不使用 GUI/视频功能，因此不再安装带 Qt 高层的普通版 opencv。
-2. 剔除未使用的视频插件：cv2 自带约 29 MiB 的 `opencv_videoio_ffmpeg500_64.dll` 仅用于视频读/写，程序从不调用，已在 spec 打包清单过滤。
-3. UPX `--lzma` 压缩：对 `python314.dll`、`cv2.pyd`、PyMuPDF 原生库、tcl/tk、qpdf 等可执行文件与 DLL 做运行时自解压压缩。
-
-打包后冒烟测试通过：`dist\Mark12Final.exe` 可正常启动并保持运行。
-
-对于页面上的大面积背景图水印，Mark12 现在会直接按图像 XObject 删除引用，并跳过该页的渲染像素级斜向检测，像 Test6 这种包含整幕背景图的 PDF 预览会快很多。
-
-体积优化依赖本地 `Mark12Final.spec`（其中写入了排除 `opencv_videoio_ffmpeg` 的过滤逻辑；`*.spec` 是被忽略的本地构建文件，不入库），并在 PATH 中提供 UPX：
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-# 将 upx 所在目录加入 PATH 后执行；不加 UPX 时去掉 --upx-dir 即可
-python -m PyInstaller --noconfirm --clean --upx-dir "UPX所在目录" Mark12Final.spec
-```
-
-不依赖 spec 的原生命令（不带 ffmpeg 过滤与 UPX）：
-
-```powershell
-python -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark12Final Mark12.py
-```
-
-输出位置：
-
-```text
-dist\Mark12Final.exe
-```
-
-打包前检查：
-
-```powershell
-.\.venv\Scripts\python.exe -m compileall -q Mark12.py pdf_watermarker pdf_decryptor tests
-.\.venv\Scripts\python.exe -c "import pymupdf, cv2, numpy, PIL, tkinterdnd2, pikepdf; print('deps ok')"
-.\.venv\Scripts\python.exe -m PyInstaller --version
-```
-
-## macOS 打包
-
-在 Mac 本机执行：
+macOS：
 
 ```bash
-source .venv/bin/activate
-python -m PyInstaller --noconfirm --clean --windowed --onedir \
-  --name Mark12Mac \
-  --icon pdf_tool_icon.ico \
-  --osx-bundle-identifier com.toutais.pdfwatermarker \
-  Mark12.py
+./scripts/build_macos.sh
 ```
 
-输出为 `dist/Mark12Mac.app`。当前本地构建为 Apple Silicon `arm64`，不能直接在
-Intel Mac 上运行；Intel Mac 应在 Intel Python 环境中重新构建。应用目前是
-PyInstaller 临时签名（ad-hoc），本机可运行；若要分发给其他用户，需要使用 Apple
-Developer ID 签名并公证。`build/`、`dist/` 与生成的 `*.spec` 均已忽略，不影响
-Windows 源码或打包流程。
+输出：`dist/Mark13Mac.app`。构建架构取决于 Python 架构；Apple Silicon 构建不能
+直接用于 Intel Mac。默认只有 ad-hoc 签名，本机可运行；公开分发仍需 Apple
+Developer ID 签名和公证。
+
+Windows PowerShell：
+
+```powershell
+.\scripts\build_windows.ps1
+```
+
+输出：`dist\Mark13Final.exe`。Windows 仍使用同一入口、业务包和依赖集合。
+
+`.venv/`、`build/`、`dist/`、`*.spec`、`.app` 和 `.dmg` 均为本机构建内容，
+不纳入 Git。
+
+## Mark13 变更
+
+- 删除 Mark1-Mark12 历史入口，仅保留当前版本。
+- 建立 `assets/`、`scripts/`、业务包和测试的清晰目录边界。
+- 使用 `version.py` 作为界面版本号的唯一来源。
+- 添加 Windows/macOS 可重复构建脚本。
+- 文档记录 OpenCV 的实际用途和 macOS `.app` 体积组成。

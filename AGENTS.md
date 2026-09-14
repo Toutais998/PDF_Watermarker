@@ -2,45 +2,55 @@
 
 ## Project Overview
 
-PDF Watermarker is a Windows and macOS desktop application for detecting and removing
-watermarks from PDF files. The main application is implemented with Python,
-Tkinter, PyMuPDF, OpenCV, NumPy, Pillow, tkinterdnd2, and pikepdf/libqpdf.
+PDF Watermarker is a cross-platform Windows/macOS desktop application. It uses
+Tkinter for the UI, PyMuPDF for PDF rendering and editing, OpenCV/NumPy for
+pixel-level watermark detection, Pillow for previews, tkinterdnd2 for drag and
+drop, and pikepdf/libqpdf for authorized decryption with a supplied or empty
+password.
 
-## Source Files
+## Current Version and Layout
 
-- `Mark12.py` is the stable, cross-platform Mark12 entry point. Keep it small.
-- `pdf_watermarker/app.py` owns the Tkinter UI and file/preview session lifecycle.
-- `pdf_watermarker/detection.py` owns automatic and ROI watermark detection.
-- `pdf_watermarker/processing.py` owns removal, unencrypted saves, and OCR output.
-- `pdf_watermarker/content_stream.py` owns low-level PDF stream parsing.
-- `pdf_watermarker/geometry.py`, `models.py`, and `constants.py` contain shared helpers.
-- `tests/` contains self-contained regression tests generated in temporary directories.
-- `Mark10.py` is the previous improved implementation.
-- `Mark9.py` is the previous improved implementation.
-- `Mark8.py` is the earlier improved implementation.
-- `pdf_decryptor/` is the independent, password-supplied PDF decryption module
-  used before Mark12 opens a document with PyMuPDF.
-- `Mark6.py` is the previous improved implementation.
-- `Mark5.py` is the previous stable implementation.
-- `Mark1.py` through `Mark4.py` are historical versions and should be
-  preserved unless the user explicitly asks for cleanup.
-- `pdf_tool_icon.ico` is the application icon.
-- `requirements.txt` contains the Python dependencies.
+- `Mark13.py` is the only current application entry point.
+- `pdf_watermarker/version.py` is the version source of truth.
+- `pdf_watermarker/app.py` owns UI and session orchestration.
+- `pdf_watermarker/detection.py` owns watermark and ROI detection.
+- `pdf_watermarker/processing.py` owns removal, unencrypted saves, and OCR.
+- `pdf_watermarker/content_stream.py` owns low-level stream parsing.
+- `pdf_watermarker/geometry.py`, `models.py`, and `constants.py` are shared code.
+- `pdf_decryptor/` owns encryption inspection and supplied-password decryption.
+- `assets/` contains source assets that are committed.
+- `scripts/` contains reproducible platform build and asset scripts.
+- `tests/` contains self-contained regression tests and must not depend on local
+  ignored PDFs.
+
+Do not restore historical `Mark1.py` through `Mark12.py` files. Git history is
+the archive for old implementations.
+
+## Mandatory Version Bump
+
+Every development change that modifies application source must increment the
+integer Mark version. The next source change after Mark13 must be Mark14, then
+Mark15, and so on. In the same change:
+
+1. Rename the root entry point to `Mark<version>.py` and remove the prior entry.
+2. Update `APP_VERSION` in `pdf_watermarker/version.py`.
+3. Update build artifact names and entry paths in both scripts.
+4. Update `Readme.md` and this file wherever the current or next version appears.
+5. Build and test only after the version update is complete.
+
+Keep exactly one current versioned root entry point. Do not copy the complete
+implementation into a new version file; the entry stays small and imports the
+shared package.
 
 ## Development Environment
-
-Use the project virtual environment whenever possible.
 
 Windows PowerShell:
 
 ```powershell
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-Install dependencies with:
-
-```powershell
 python -m pip install -r requirements.txt
+python Mark13.py
 ```
 
 macOS:
@@ -49,129 +59,66 @@ macOS:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+python Mark13.py
 ```
 
-Run the current application with:
-
-```powershell
-python Mark12.py
-```
+Do not add a platform-only dependency unless necessary. If one is necessary,
+document its environment marker and keep platform-specific outputs ignored.
 
 ## Validation
 
-Before handing off Python changes, run the platform-appropriate equivalent of:
+Run against the changed source immediately before committing:
 
 ```bash
-.venv/bin/python -m py_compile Mark12.py pdf_watermarker/*.py pdf_decryptor/*.py tests/*.py
+.venv/bin/python -m compileall -q Mark13.py pdf_watermarker pdf_decryptor tests
 .venv/bin/python -m unittest discover -v
 ```
 
-When changing watermark detection or removal, validate against a representative
-PDF and confirm that the watermark is removed without damaging nearby content.
-When changing startup or packaging, instantiate the Tk root/application and smoke-test
-the packaged executable. Compare the method set after any mixin refactor so public and
-internal behavior is not accidentally dropped.
+For Windows, use the equivalent `.venv\Scripts\python.exe` command. Changes to
+startup or packaging also require a GUI initialization smoke test and a packaged
+executable launch test on the current platform. Changes to detection/removal must
+verify that targeted watermark content is removed, nearby body content remains,
+and the newly written PDF reopens without encryption.
+
+Never treat a test result from an earlier commit, earlier Mark version, or a
+pre-change build as validation of current source.
 
 ## Build
 
-Build the current Mark12 Windows executable with:
-
-```powershell
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --noconsole --onefile --clean --icon="pdf_tool_icon.ico" --name Mark12Final Mark12.py
-```
-
-For the optimized Windows build, use the local `Mark12Final.spec` (it filters out
-the unused `opencv_videoio_ffmpeg` video DLL) together with UPX on PATH:
-
-```powershell
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --clean --upx-dir "C:\path\to\upx\win64" Mark12Final.spec
-```
-
-Build the current Apple Silicon macOS app with:
+macOS:
 
 ```bash
-.venv/bin/python -m PyInstaller --noconfirm --clean --windowed --onedir \
-  --name Mark12Mac --icon pdf_tool_icon.ico \
-  --osx-bundle-identifier com.toutais.pdfwatermarker Mark12.py
+./scripts/build_macos.sh
 ```
 
-This produces `dist/Mark12Mac.app`. PyInstaller builds are architecture-specific;
-use an Intel Python environment for an Intel build. Local/ad-hoc signing is enough
-for smoke testing, but public distribution requires Developer ID signing and notarization.
+Windows PowerShell:
 
-The generated `build/`, `dist/`, and `*.spec` files are local build artifacts.
-They must remain ignored by Git and must not be committed.
+```powershell
+.\scripts\build_windows.ps1
+```
 
-## Git and Repository Rules
+PyInstaller output is architecture- and OS-specific. Keep `.venv/`, `build/`,
+`dist/`, `*.spec`, `.app`, `.dmg`, Python caches, generated test PDFs, temporary
+previews, and IDE configuration out of Git.
 
-- Commit core source code, documentation, icons, and `requirements.txt`.
-- Every conversation that ends with a new version of the Python code must be followed by compiling it and pushing the core code to git.
-- Do not commit `.venv/`, `build/`, `dist/`, `*.spec`, Python caches, test
-  PDFs, `.app`, `.dmg`, temporary preview files, or IDE configuration.
-- Keep changes focused and preserve existing historical versions.
-- Do not rewrite history or use destructive Git commands unless explicitly
-  requested.
-- Use clear commit messages and push only after the working tree has been
-  reviewed.
-- Every functional update or new Mark version must update both `Readme.md` and
-  `AGENTS.md` in the same change.
+## Code Rules
 
-## Code Style
+- Preserve the current Chinese UI wording unless a feature requires a change.
+- Keep PDF password handling in `pdf_decryptor/`; never add password guessing or
+  unknown-password recovery.
+- Keep detection, processing, geometry, models, and UI concerns in their existing
+  modules instead of growing the root entry point.
+- Prefer official `import pymupdf as fitz` imports over the deprecated `fitz`
+  compatibility package.
+- Avoid unnecessary dependencies. OpenCV is currently required for thresholding,
+  morphology, connected components, resize/blur, masks, and ROI comparisons.
+- Preserve original PDFs and use verified unencrypted temporary/output files.
+- Update tests whenever behavior changes.
 
-- Follow the existing Python structure and naming conventions.
-- Prefer small, focused changes over broad refactors.
-- Keep user-facing messages clear and consistent with the existing Chinese UI.
-- Avoid adding dependencies unless they are necessary and documented in
-  `requirements.txt`.
-- Do not add comments that merely restate obvious code.
+## Git Workflow
 
-## Version Notes
+Review the complete staged diff and confirm ignored build artifacts remain
+untracked before committing. Use a concise Chinese commit summary and push the
+current branch only after current-source validation passes.
 
-- Mark6 added support for Hujiang-style pale diagonal text/path watermarks.
-- Mark7 adds support for Test-2-style repeated bottom QR-code watermarks,
-  bottom QR instruction text, and repeated Koolearn/New Oriental right-side
-  background image watermarks.
-- Mark7 supports selecting or dragging multiple PDFs and recursively importing
-  a folder. Files are analyzed sequentially and their detection results can be
-  reviewed from the batch-file selector.
-- Mark8 fixes Test-3-style slanted pale vector watermarks (e.g. 沪江德语):
-  removal now deletes the pale/translucent vector paths directly from the page
-  content stream instead of white-filling the whole bounding rectangle, so body
-  text is no longer wiped out. A precise pale-pixel cell redaction acts as a
-  safe fallback when the path parser matches nothing.
-- Mark8 keyword-based text-watermark detection only triggers near page edges or
-  on rotated text, so body lines that merely contain a brand word (e.g.
-  "Hujiang") are no longer misclassified as watermarks.
-- Mark8 rendered-diagonal detection now auto-fits the dominant diagonal
-  orientation and clusters parallel bands instead of relying on hardcoded
-  slopes/intercepts, and it is skipped on pages already matched by the
-  soft-vector detector.
-- Mark9 checks PDF encryption before PyMuPDF analysis and uses the independent
-  `pdf_decryptor` package (pikepdf/libqpdf) to create and verify an unencrypted
-  session temp file. Empty user passwords work automatically; known non-empty
-  user or owner passwords are requested through a masked dialog. The original
-  PDF is never overwritten, cached decrypted files are reused during the
-  session, and all session decryption files are removed on exit.
-- Mark10 detects explicit PDF `/Subtype /Watermark` artifacts and producer-tagged
-  `/Private /Watermark` image/Form XObjects before pixel analysis. This supports
-  Test4's optional-content, even-page image watermark and removes Test5's tiled
-  Form watermark directly from content streams.
-- Mark10 avoids expanding duplicate/dead image resources, filters 1-pixel drawing
-  helpers, indexes removals by page, and uses a faster safe garbage-collection
-  level when saving.
-- Every Mark10 preview and final result is explicitly saved without encryption and
-  verified to contain no password or PDF permission protection before success is
-  reported.
-- Mark11 uses deep resource cleanup (`garbage=4`, `clean=1`, object streams, and
-  deflate) when saving so Test4-style PDFs can shrink without rasterizing text.
-  It diagnoses missing `ToUnicode` maps in FzBookMaker/custom-encoded fonts and
-  explains that displayed-but-uncopyable text requires external OCR (Tesseract
-  with Chinese language data); the original glyph encoding cannot be losslessly
-  reconstructed from the PDF alone.
-- Mark11's bundled EXE was slimmed from ~98 MiB to ~63 MiB by switching to
-  `opencv-python-headless` and dropping the unused `opencv_videoio_ffmpeg` video DLL.
-- Mark12 now treats large background images as direct XObject removals and skips rendered-diagonal pixel scanning on those pages, which keeps Test6-style previews much faster without changing the other watermark paths.
-- Mark12 is now split into the `pdf_watermarker` package while preserving the
-  original 92 application methods through mixins. The same entry point and dependency
-  set are used on Windows and macOS. Apple Silicon source, PDF workflow, GUI, packaged
-  launch, bundled drag-and-drop, and bundled libqpdf checks have passed.
+After development, update affected documentation, review staged files, commit on the current branch with a concise Chinese summary, and push. Never claim an old test pass validates changed source.

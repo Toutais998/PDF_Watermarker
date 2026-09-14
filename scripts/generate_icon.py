@@ -1,4 +1,9 @@
+from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def create_pdf_icon():
     # 创建一个 256x256 的透明背景画布
@@ -32,8 +37,9 @@ def create_pdf_icon():
     draw.rectangle([75, 190, 145, 198], fill="#E2574C")
 
     # 导出为包含多种标准尺寸的 Windows ICO 文件
-    img.save('pdf_tool_icon.ico', format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (32, 32)])
-    print("桌面图标 pdf_tool_icon.ico 已成功生成！")
+    output_path = PROJECT_ROOT / "assets" / "pdf_tool_icon.ico"
+    img.save(output_path, format='ICO', sizes=[(256, 256), (128, 128), (64, 64), (32, 32)])
+    print(f"桌面图标已生成：{output_path}")
 
 if __name__ == "__main__":
     create_pdf_icon()

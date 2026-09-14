@@ -1,4 +1,4 @@
-"""Tkinter application shell for PDF Watermarker Mark12."""
+"""Tkinter application shell for PDF Watermarker."""
 
 import os
 import tempfile
@@ -25,6 +25,7 @@ from .detection import DetectionMixin
 from .geometry import GeometryMixin
 from .models import ImageCandidate, VectorCandidate, WatermarkInfo
 from .processing import ProcessingMixin
+from .version import APP_DISPLAY_NAME
 
 try:
     from tkinterdnd2 import DND_FILES, TkinterDnD
@@ -39,7 +40,7 @@ except Exception:
 class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
     def __init__(self, master):
         self.master = master
-        self.master.title("PDF 水印去除工具 Mark12")
+        self.master.title(APP_DISPLAY_NAME)
         self.master.geometry("1280x820")
         self.master.configure(bg=MAIN_BG)
 

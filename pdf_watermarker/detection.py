@@ -394,8 +394,8 @@ class DetectionMixin:
             shallow_color = luminance is not None and luminance >= 0.72
             dark_color = luminance is not None and luminance <= 0.25
 
-            # Mark5: 兼容两类图形水印：
-            # 1) Mark4 已支持的大面积、浅色/半透明矢量；
+            # 兼容两类图形水印：
+            # 1) 大面积、浅色/半透明矢量；
             # 2) 顶部/边缘重复出现的黑色不透明细线或细框，常见于下载水印/裁切框。
             near_edge = (
                 rect.y0 <= page.rect.height * 0.08 or

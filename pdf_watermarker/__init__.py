@@ -1,4 +1,4 @@
-"""PDF Watermarker Mark12 application package."""
+"""PDF Watermarker application package."""
 
 from .launcher import main
 

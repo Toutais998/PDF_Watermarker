@@ -134,7 +134,7 @@ class ProcessingMixin:
                 return folder
         raise RuntimeError(
             "未找到 Tesseract 的 chi_sim.traineddata 和 eng.traineddata。"
-            "请安装 Tesseract 中文语言包，或把两个文件放入 Mark12.py 同目录的 tessdata 文件夹。"
+            "请安装 Tesseract 中文语言包，或把两个文件放入项目根目录的 tessdata 文件夹。"
         )
 
     def _save_ocr_searchable_pdf(self, input_path: str, output_path: str):
