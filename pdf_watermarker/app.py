@@ -9,7 +9,7 @@ import pymupdf as fitz
 from PIL import Image, ImageTk
 from tkinter import (
     BOTH, END, LEFT, RIGHT, TOP, X, Y, Button, Canvas, Entry, Frame,
-    Label, Listbox, StringVar, filedialog, messagebox, simpledialog,
+    Label, Listbox, StringVar, filedialog, simpledialog,
 )
 from tkinter import ttk
 
@@ -25,6 +25,7 @@ from .detection import DetectionMixin
 from .geometry import GeometryMixin
 from .models import ImageCandidate, VectorCandidate, WatermarkInfo
 from .processing import ProcessingMixin
+from .ui_preferences import PreferencesMixin
 from .version import APP_DISPLAY_NAME
 
 try:
@@ -37,12 +38,13 @@ except Exception:
 
 
 
-class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
+class PDFWatermarkRemover(PreferencesMixin, DetectionMixin, ProcessingMixin, GeometryMixin):
     def __init__(self, master):
         self.master = master
         self.master.title(APP_DISPLAY_NAME)
         self.master.geometry("1280x820")
         self.master.configure(bg=MAIN_BG)
+        self._init_preferences()
 
         self.pdf_path = None
         self.original_pdf_path = None
@@ -89,6 +91,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
         self.rot_stage = None  # None / axis / rotated_line / rotated_width
 
         self._build_ui()
+        self.apply_theme()
         self._bind_drop_targets()
         self.master.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -97,24 +100,25 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
         top_frame = Frame(self.master, bg=MAIN_BG)
         top_frame.pack(side=TOP, fill=X, padx=10, pady=10)
 
-        Button(top_frame, text="选择PDF", bg=BUTTON_BG, fg=BUTTON_FG,
-               command=self.open_pdf, width=12, height=2).pack(side=LEFT, padx=5)
-        Button(top_frame, text="选择文件夹", bg=BUTTON_BG, fg=BUTTON_FG,
-               command=self.open_pdf_folder, width=12, height=2).pack(side=LEFT, padx=5)
-        Button(top_frame, text="分析水印", bg=BUTTON_BG, fg=BUTTON_FG,
-               command=self.analyze_watermarks, width=12, height=2).pack(side=LEFT, padx=5)
-        Button(top_frame, text="预览去除效果", bg=BUTTON_BG, fg=BUTTON_FG,
-               command=self.preview_selected_watermarks, width=14, height=2).pack(side=LEFT, padx=5)
-        Button(top_frame, text="保存当前结果", bg="#28a745", fg=BUTTON_FG,
-               command=self.save_current_result, width=14, height=2).pack(side=LEFT, padx=5)
-        Button(top_frame, text="返回原文件", bg="#6c757d", fg=BUTTON_FG,
-               command=self.restore_original_pdf, width=12, height=2).pack(side=LEFT, padx=5)
+        self.localized(Button(top_frame, bg=BUTTON_BG, fg=BUTTON_FG,
+               command=self.open_pdf, width=12, height=2), "select_pdf").pack(side=LEFT, padx=5)
+        self.localized(Button(top_frame, bg=BUTTON_BG, fg=BUTTON_FG,
+               command=self.open_pdf_folder, width=12, height=2), "select_folder").pack(side=LEFT, padx=5)
+        self.localized(Button(top_frame, bg=BUTTON_BG, fg=BUTTON_FG,
+               command=self.analyze_watermarks, width=12, height=2), "analyze").pack(side=LEFT, padx=5)
+        self.localized(Button(top_frame, bg=BUTTON_BG, fg=BUTTON_FG,
+               command=self.preview_selected_watermarks, width=14, height=2), "preview").pack(side=LEFT, padx=5)
+        self.localized(Button(top_frame, bg="#28a745", fg=BUTTON_FG,
+               command=self.save_current_result, width=14, height=2), "save").pack(side=LEFT, padx=5)
+        self.localized(Button(top_frame, bg="#6c757d", fg=BUTTON_FG,
+               command=self.restore_original_pdf, width=12, height=2), "restore").pack(side=LEFT, padx=5)
 
-        self.mode_var = StringVar(value="当前模式：未打开文件")
-        Label(top_frame, textvariable=self.mode_var, bg=MAIN_BG, fg="#555555").pack(side=LEFT, padx=12)
-
-        self.status_var = StringVar(value="欢迎使用 PDF 水印去除工具")
-        Label(top_frame, textvariable=self.status_var, bg=MAIN_BG).pack(side=RIGHT, padx=10)
+        info_frame = Frame(self.master, bg=MAIN_BG)
+        info_frame.pack(fill=X, padx=15, pady=(0, 4))
+        self.mode_var = self.translated_var("当前模式：未打开文件")
+        Label(info_frame, textvariable=self.mode_var, bg=MAIN_BG, fg="#555555").pack(side=LEFT)
+        self.status_var = self.translated_var("欢迎使用 PDF 水印去除工具")
+        Label(info_frame, textvariable=self.status_var, bg=MAIN_BG).pack(side=RIGHT)
 
         content_frame = Frame(self.master, bg=MAIN_BG)
         content_frame.pack(fill=BOTH, expand=True, padx=10, pady=5)
@@ -122,7 +126,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
         preview_frame = Frame(content_frame, bg=FRAME_BG)
         preview_frame.pack(side=LEFT, fill=BOTH, expand=True, padx=(0, 5))
 
-        self.drop_hint_var = StringVar(
+        self.drop_hint_var = self.translated_var(
             value="支持拖入 PDF 文件" if HAS_TKDND else "拖拽支持需要安装 tkinterdnd2：pip install tkinterdnd2"
         )
         self.drop_hint = Label(preview_frame, textvariable=self.drop_hint_var, bg="#eef5ff", anchor="w")
@@ -130,7 +134,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
 
         batch_frame = Frame(preview_frame, bg=FRAME_BG)
         batch_frame.pack(fill=X, padx=10, pady=(6, 0))
-        Label(batch_frame, text="批量文件:", bg=FRAME_BG).pack(side=LEFT)
+        self.localized(Label(batch_frame, bg=FRAME_BG), "batch_files").pack(side=LEFT)
         self.batch_file_var = StringVar()
         self.batch_file_combo = ttk.Combobox(batch_frame, textvariable=self.batch_file_var, state="readonly")
         self.batch_file_combo.pack(side=LEFT, fill=X, expand=True, padx=(6, 0))
@@ -146,55 +150,69 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
 
         roi_frame = Frame(preview_frame, bg=FRAME_BG)
         roi_frame.pack(fill=X, padx=10, pady=(0, 5))
-        Label(roi_frame, text="选区模式:", bg=FRAME_BG).pack(side=LEFT)
-        ttk.Radiobutton(roi_frame, text="矩形", variable=self.roi_mode, value="axis").pack(side=LEFT, padx=(5, 0))
-        ttk.Radiobutton(roi_frame, text="斜框", variable=self.roi_mode, value="rotated").pack(side=LEFT, padx=(5, 10))
-        Button(roi_frame, text="分析所选区域", command=self.analyze_roi, width=14).pack(side=LEFT, padx=5)
-        Button(roi_frame, text="清除选区", command=self.clear_roi, width=10).pack(side=LEFT, padx=5)
-        Label(
-            roi_frame,
-            text="斜框模式：先拖出方向线，再移动鼠标确定宽度并单击确认；右键清空",
+        self.localized(Label(roi_frame, bg=FRAME_BG), "roi_mode").pack(side=LEFT)
+        self.localized(ttk.Radiobutton(roi_frame, variable=self.roi_mode, value="axis"), "rectangle").pack(side=LEFT, padx=(5, 0))
+        self.localized(ttk.Radiobutton(roi_frame, variable=self.roi_mode, value="rotated"), "rotated").pack(side=LEFT, padx=(5, 10))
+        self.localized(Button(roi_frame, command=self.analyze_roi, width=14), "analyze_roi").pack(side=LEFT, padx=5)
+        self.localized(Button(roi_frame, command=self.clear_roi, width=10), "clear_roi").pack(side=LEFT, padx=5)
+        roi_help = self.localized(Label(
+            preview_frame,
             bg=FRAME_BG,
             fg="#666666",
-        ).pack(side=LEFT, padx=10)
+            anchor="w",
+        ), "roi_help")
+        roi_help.pack(fill=X, padx=15, pady=(0, 5))
 
         nav_frame = Frame(preview_frame, bg=FRAME_BG)
         nav_frame.pack(fill=X, padx=10, pady=(0, 10))
-        Button(nav_frame, text="上一页", command=self.prev_page, width=10).pack(side=LEFT, padx=5)
+        self.localized(Button(nav_frame, command=self.prev_page, width=10), "previous").pack(side=LEFT, padx=5)
         self.page_var = StringVar(value="0/0")
         Label(nav_frame, textvariable=self.page_var, bg=FRAME_BG).pack(side=LEFT, padx=10)
-        Button(nav_frame, text="下一页", command=self.next_page, width=10).pack(side=LEFT, padx=5)
+        self.localized(Button(nav_frame, command=self.next_page, width=10), "next").pack(side=LEFT, padx=5)
 
         side_frame = Frame(content_frame, bg=FRAME_BG, width=430)
         side_frame.pack(side=RIGHT, fill=BOTH, padx=(5, 0))
         side_frame.pack_propagate(False)
 
+        preference_frame = Frame(side_frame, bg=FRAME_BG)
+        preference_frame.pack(fill=X, padx=10, pady=(10, 0))
+        self.localized(Label(preference_frame, bg=FRAME_BG), "appearance").pack(side=LEFT)
+        self.theme_combo = ttk.Combobox(preference_frame, textvariable=self.theme_display_var, state="readonly", width=10)
+        self.theme_combo.pack(side=LEFT, padx=(4, 12))
+        self.theme_combo.bind("<<ComboboxSelected>>", self._on_theme_changed)
+        self.localized(Label(preference_frame, bg=FRAME_BG), "language").pack(side=LEFT)
+        self.language_combo = ttk.Combobox(preference_frame, textvariable=self.language_display_var, state="readonly", width=10)
+        self.language_combo.pack(side=LEFT, padx=(4, 0))
+        self.language_combo.bind("<<ComboboxSelected>>", self._on_language_changed)
+        self._refresh_preference_controls()
+
         search_frame = Frame(side_frame, bg=FRAME_BG)
         search_frame.pack(fill=X, padx=10, pady=10)
-        Label(search_frame, text="搜索水印:", bg=FRAME_BG).pack(side=LEFT)
+        self.localized(Label(search_frame, bg=FRAME_BG), "search_label").pack(side=LEFT)
         self.search_var = StringVar()
         Entry(search_frame, textvariable=self.search_var, width=28).pack(side=LEFT, fill=X, expand=True, padx=5)
-        Button(search_frame, text="搜索", command=self.search_watermarks).pack(side=LEFT)
+        self.localized(Button(search_frame, command=self.search_watermarks), "search").pack(side=LEFT)
 
         self.notebook = ttk.Notebook(side_frame)
         self.notebook.pack(fill=BOTH, expand=True, padx=10, pady=(0, 10))
 
-        self.text_listbox = self._create_watermark_tab("文本水印")
-        self.graphic_listbox = self._create_watermark_tab("图形水印")
+        self.text_listbox = self._create_watermark_tab("text_watermarks")
+        self.graphic_listbox = self._create_watermark_tab("graphic_watermarks")
 
         self.text_listbox.bind("<<ListboxSelect>>", lambda e: self.on_watermark_select(True))
         self.graphic_listbox.bind("<<ListboxSelect>>", lambda e: self.on_watermark_select(False))
 
         custom_frame = Frame(side_frame, bg=FRAME_BG)
         custom_frame.pack(fill=X, padx=10, pady=(0, 10))
-        Label(custom_frame, text="添加自定义水印关键词:", bg=FRAME_BG).pack(anchor="w")
+        self.localized(Label(custom_frame, bg=FRAME_BG), "custom_keyword").pack(anchor="w")
         self.custom_keyword = StringVar()
         Entry(custom_frame, textvariable=self.custom_keyword).pack(fill=X, pady=5)
-        Button(custom_frame, text="添加", command=self.add_custom_keyword).pack(anchor="e")
+        self.localized(Button(custom_frame, command=self.add_custom_keyword), "add").pack(anchor="e")
 
-    def _create_watermark_tab(self, title: str) -> Listbox:
+    def _create_watermark_tab(self, title_key: str) -> Listbox:
         frame = Frame(self.notebook, bg=FRAME_BG)
-        self.notebook.add(frame, text=title)
+        self.notebook.add(frame, text=self.tr(title_key))
+        self.localized_tab(self.notebook, frame, title_key)
 
         list_frame = Frame(frame, bg=FRAME_BG)
         list_frame.pack(fill=BOTH, expand=True, padx=5, pady=5)
@@ -207,8 +225,8 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
 
         btn_frame = Frame(frame, bg=FRAME_BG)
         btn_frame.pack(fill=X, padx=5, pady=5)
-        Button(btn_frame, text="全选", command=lambda lb=listbox: self.select_all(lb), width=10).pack(side=LEFT, padx=5)
-        Button(btn_frame, text="取消全选", command=lambda lb=listbox: self.clear_all(lb), width=10).pack(side=LEFT, padx=5)
+        self.localized(Button(btn_frame, command=lambda lb=listbox: self.select_all(lb), width=10), "select_all").pack(side=LEFT, padx=5)
+        self.localized(Button(btn_frame, command=lambda lb=listbox: self.clear_all(lb), width=10), "clear_all").pack(side=LEFT, padx=5)
         return listbox
 
     def _bind_drop_targets(self):
@@ -259,8 +277,8 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
 
     def _ask_pdf_password(self, file_path: str) -> Optional[str]:
         return simpledialog.askstring(
-            "PDF 需要密码",
-            f"文件已加密，请输入合法持有的用户密码或所有者密码：\n\n{os.path.basename(file_path)}",
+            self.translate_runtime("PDF 需要密码"),
+            self.translate_runtime(f"文件已加密，请输入合法持有的用户密码或所有者密码：\n\n{os.path.basename(file_path)}"),
             show="*",
             parent=self.master,
         )
@@ -305,7 +323,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
                         raise InterruptedError("用户取消输入 PDF 密码")
                 except IncorrectPasswordError:
                     self.pdf_passwords.pop(source_key, None)
-                    messagebox.showerror("密码错误", "提供的 PDF 用户密码或所有者密码不正确，请重试")
+                    self.showerror("密码错误", "提供的 PDF 用户密码或所有者密码不正确，请重试")
                     password = self._ask_pdf_password(source_path)
                     if password is None:
                         raise InterruptedError("用户取消输入 PDF 密码")
@@ -320,7 +338,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
                 f"已授权解密：{os.path.basename(source_path)}（{algorithm}, {bits}-bit）"
             )
             if result.had_digital_signatures:
-                messagebox.showwarning(
+                self.showwarning(
                     "数字签名提示",
                     "输入 PDF 含数字签名。解密和后续去水印会重写文件，原签名通常不再有效。",
                 )
@@ -358,7 +376,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
             return
         pdf_files = [path for path in files if path.lower().endswith(".pdf") and os.path.isfile(path)]
         if not pdf_files:
-            messagebox.showerror("文件类型错误", "拖入的内容中没有 PDF 文件")
+            self.showerror("文件类型错误", "拖入的内容中没有 PDF 文件")
             return
         self.import_pdf_paths(pdf_files)
 
@@ -394,14 +412,14 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
     # ---------------- PDF loading / rendering ----------------
     def open_pdf(self):
         file_paths = filedialog.askopenfilenames(
-            title="选择一个或多个 PDF 文件",
-            filetypes=[("PDF 文件", "*.pdf"), ("所有文件", "*.*")],
+            title=self.translate_runtime("选择一个或多个 PDF 文件"),
+            filetypes=[(self.translate_runtime("PDF 文件"), "*.pdf"), (self.translate_runtime("所有文件"), "*.*")],
         )
         if file_paths:
             self.import_pdf_paths(list(file_paths))
 
     def open_pdf_folder(self):
-        folder = filedialog.askdirectory(title="选择包含 PDF 的文件夹")
+        folder = filedialog.askdirectory(title=self.translate_runtime("选择包含 PDF 的文件夹"))
         if not folder:
             return
         pdf_files = []
@@ -409,7 +427,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
             pdf_files.extend(os.path.join(root, name) for name in names if name.lower().endswith(".pdf"))
         pdf_files.sort(key=str.lower)
         if not pdf_files:
-            messagebox.showinfo("未找到 PDF", "所选文件夹及其子文件夹中没有 PDF 文件")
+            self.showinfo("未找到 PDF", "所选文件夹及其子文件夹中没有 PDF 文件")
             return
         self.import_pdf_paths(pdf_files)
 
@@ -425,7 +443,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
         if not normalized:
             return
         if self.batch_running:
-            messagebox.showinfo("批量识别进行中", "请等待当前批次识别完成后再导入新文件")
+            self.showinfo("批量识别进行中", "请等待当前批次识别完成后再导入新文件")
             return
         self.batch_paths = normalized
         self.batch_results = {}
@@ -440,7 +458,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
             self._refresh_batch_combo()
             total_marks = sum(len(result.get("watermarks", [])) for result in self.batch_results.values())
             self.status_var.set(f"批量识别完成：{len(self.batch_results)}/{len(self.batch_paths)} 个文件，共 {total_marks} 个候选")
-            messagebox.showinfo("批量识别完成", self.status_var.get())
+            self.showinfo("批量识别完成", self.status_var.get())
             return
         path = self.batch_paths[self.batch_index]
         self._refresh_batch_combo()
@@ -484,7 +502,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
 
     def load_pdf(self, file_path: str, as_original: bool = True, start_page: int = 0):
         if not file_path.lower().endswith(".pdf"):
-            messagebox.showerror("文件类型错误", "请选择 PDF 文件")
+            self.showerror("文件类型错误", "请选择 PDF 文件")
             return False
         try:
             if self.doc:
@@ -531,11 +549,11 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
             self.status_var.set("已取消打开加密 PDF")
             return False
         except PdfDecryptionError as e:
-            messagebox.showerror("PDF 解密失败", str(e))
+            self.showerror("PDF 解密失败", str(e))
             self.status_var.set("PDF 解密失败")
             return False
         except Exception as e:
-            messagebox.showerror("错误", f"打开 PDF 失败: {e}")
+            self.showerror("错误", f"打开 PDF 失败: {e}")
             return False
 
     @staticmethod
@@ -767,7 +785,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
     # ---------------- analysis ----------------
     def analyze_watermarks(self):
         if not self.doc:
-            messagebox.showinfo("提示", "请先打开 PDF 文件")
+            self.showinfo("提示", "请先打开 PDF 文件")
             return
         self.status_var.set("正在分析水印...")
         self.watermarks = []
@@ -816,7 +834,8 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
             self.watermarks = text_marks + explicit_marks + graphic_marks
             self.master.after(0, self._update_watermark_list)
         except Exception as e:
-            self.master.after(0, lambda: messagebox.showerror("错误", f"分析水印时出错: {e}"))
+            error = str(e)
+            self.master.after(0, lambda: self.showerror("错误", f"分析水印时出错: {error}"))
             self.master.after(0, lambda: self.status_var.set("分析水印失败"))
             if self.batch_running:
                 path = self.batch_paths[self.batch_index]
@@ -828,11 +847,11 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
     # ---------------- remove / preview / save ----------------
     def preview_selected_watermarks(self):
         if not self.doc or not self.watermarks:
-            messagebox.showinfo("提示", "请先打开 PDF 并分析水印")
+            self.showinfo("提示", "请先打开 PDF 并分析水印")
             return
         selected = [w for w in self.watermarks if w.selected]
         if not selected:
-            messagebox.showinfo("提示", "请先选择要去除的水印")
+            self.showinfo("提示", "请先选择要去除的水印")
             return
 
         input_path = self.pdf_path
@@ -858,7 +877,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
             def show_preview():
                 self.load_pdf(temp_file, as_original=False, start_page=start_page)
                 self.status_var.set("预览已生成：可继续框选、分析，满意后再保存")
-                auto_scan = messagebox.askyesno(
+                auto_scan = self.askyesno(
                     "预览已生成",
                     "已载入本次去水印预览。\n\n现在你可以继续框选、分析剩余水印。\n是否立即自动分析当前预览文件中的剩余候选水印？"
                 )
@@ -872,23 +891,24 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
                     os.remove(temp_file)
                 except Exception:
                     pass
-            self.master.after(0, lambda: messagebox.showerror("错误", f"生成预览失败: {e}"))
+            error = str(e)
+            self.master.after(0, lambda: self.showerror("错误", f"生成预览失败: {error}"))
             self.master.after(0, lambda: self.status_var.set("生成预览失败"))
 
     def save_current_result(self):
         if not self.doc or not self.pdf_path:
-            messagebox.showinfo("提示", "请先打开 PDF 文件")
+            self.showinfo("提示", "请先打开 PDF 文件")
             return
         if not self.is_preview_session:
-            messagebox.showinfo("提示", "请先点击“预览去除效果”，确认满意后再保存")
+            self.showinfo("提示", "请先点击“预览去除效果”，确认满意后再保存")
             return
 
         base_name = os.path.splitext(os.path.basename(self.original_pdf_path or self.pdf_path))[0]
         output_path = filedialog.asksaveasfilename(
-            title="保存当前预览结果",
+            title=self.translate_runtime("保存当前预览结果"),
             defaultextension=".pdf",
-            filetypes=[("PDF 文件", "*.pdf"), ("所有文件", "*.*")],
-            initialfile=f"{base_name}_无水印.pdf",
+            filetypes=[(self.translate_runtime("PDF 文件"), "*.pdf"), (self.translate_runtime("所有文件"), "*.*")],
+            initialfile=f"{base_name}_{'watermark_removed' if self.language_code == 'en' else '无水印'}.pdf",
         )
         if not output_path:
             return
@@ -897,7 +917,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
             self.status_var.set("正在保存当前结果...")
             use_ocr = False
             if self.text_encoding_warning:
-                use_ocr = messagebox.askyesno(
+                use_ocr = self.askyesno(
                     "修复复制乱码",
                     f"{self.text_encoding_warning}，这是源 PDF 的字体编码问题。\n\n"
                     "选择“是”：OCR 重建中文可复制文本层（页面会转为保真图像，文件可能变大）。\n"
@@ -917,17 +937,17 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
                 )
             elif use_ocr:
                 note = "\n\n已通过 OCR 重建中文可搜索、可复制文本层。"
-            messagebox.showinfo("保存完成", f"当前预览结果已保存到：\n{output_path}\n\n已确认密码和 PDF 保护均已清除。{note}")
+            self.showinfo("保存完成", f"当前预览结果已保存到：\n{output_path}\n\n已确认密码和 PDF 保护均已清除。{note}")
         except Exception as e:
-            messagebox.showerror("错误", f"保存结果失败: {e}")
+            self.showerror("错误", f"保存结果失败: {e}")
             self.status_var.set("保存结果失败")
 
     def restore_original_pdf(self):
         if not self.original_pdf_path:
-            messagebox.showinfo("提示", "当前没有可返回的原始文件")
+            self.showinfo("提示", "当前没有可返回的原始文件")
             return
         if not self.is_preview_session:
-            messagebox.showinfo("提示", "当前已经是原始文件")
+            self.showinfo("提示", "当前已经是原始文件")
             return
         keep_page = self.current_page
         self.load_pdf(self.original_pdf_path, as_original=True, start_page=keep_page)
@@ -944,10 +964,10 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
         for wm in sorted(self.watermarks, key=lambda x: (x.page_index, x.type_name, x.content)):
             if wm.is_text:
                 self.text_items.append(wm)
-                self.text_listbox.insert(END, wm.display_text())
+                self.text_listbox.insert(END, self.translate_runtime(wm.display_text()))
             else:
                 self.graphic_items.append(wm)
-                self.graphic_listbox.insert(END, wm.display_text())
+                self.graphic_listbox.insert(END, self.translate_runtime(wm.display_text()))
 
         for idx, wm in enumerate(self.text_items):
             if wm.selected:
@@ -1002,12 +1022,12 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
 
         text_hits = 0
         for i, wm in enumerate(self.text_items):
-            if term in wm.display_text().lower():
+            if term in self.translate_runtime(wm.display_text()).lower():
                 self.text_listbox.selection_set(i)
                 text_hits += 1
         graphic_hits = 0
         for i, wm in enumerate(self.graphic_items):
-            if term in wm.display_text().lower():
+            if term in self.translate_runtime(wm.display_text()).lower():
                 self.graphic_listbox.selection_set(i)
                 graphic_hits += 1
 
@@ -1022,7 +1042,7 @@ class PDFWatermarkRemover(DetectionMixin, ProcessingMixin, GeometryMixin):
         if not keyword:
             return
         if keyword.lower() in {k.lower() for k in WATERMARK_KEYWORDS}:
-            messagebox.showinfo("提示", "该关键词已存在")
+            self.showinfo("提示", "该关键词已存在")
             return
         WATERMARK_KEYWORDS.append(keyword)
         self.status_var.set(f"已添加关键词: {keyword}")

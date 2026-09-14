@@ -4,8 +4,6 @@ import hashlib
 import math
 import re
 from typing import Dict, List, Optional, Tuple
-from tkinter import messagebox
-
 import cv2
 import pymupdf as fitz
 import numpy as np
@@ -566,10 +564,10 @@ class DetectionMixin:
 
     def analyze_roi(self):
         if not self.doc:
-            messagebox.showinfo("提示", "请先打开 PDF 文件")
+            self.showinfo("提示", "请先打开 PDF 文件")
             return
         if not self.roi_bbox_pdf or not self.roi_points_pdf:
-            messagebox.showinfo("提示", "请先框选区域")
+            self.showinfo("提示", "请先框选区域")
             return
 
         current_hits = self._scan_roi_on_page(self.current_page, self.roi_bbox_pdf, self.roi_points_pdf)
@@ -577,7 +575,7 @@ class DetectionMixin:
             visual_score = self._roi_visual_ink_score(self.current_page, self.roi_bbox_pdf, self.roi_points_pdf)
             if visual_score <= 0.0:
                 self.status_var.set("选区中未发现文本/图形候选")
-                messagebox.showinfo("提示", "选区中未发现明显水印")
+                self.showinfo("提示", "选区中未发现明显水印")
                 return
             current_hits = [
                 WatermarkInfo(
@@ -593,7 +591,7 @@ class DetectionMixin:
             ]
 
         all_hits = list(current_hits)
-        should_scan_all = messagebox.askyesno(
+        should_scan_all = self.askyesno(
             "选区分析",
             "当前页选区内已发现候选水印。\n是否按相同相对位置扫描全部页面的重复图形/图像？"
         )

@@ -13,6 +13,7 @@ from pdf_decryptor import (
 )
 from pdf_watermarker.app import PDFWatermarkRemover
 from pdf_watermarker.models import WatermarkInfo
+from pdf_watermarker.ui_preferences import PreferencesMixin
 from pdf_watermarker.version import APP_DISPLAY_NAME, APP_VERSION
 
 
@@ -49,8 +50,18 @@ class PdfWorkflowTests(unittest.TestCase):
         return target
 
     def test_current_version(self):
-        self.assertEqual(APP_VERSION, 13)
-        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark13")
+        self.assertEqual(APP_VERSION, 14)
+        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark14")
+
+    def test_english_runtime_translation(self):
+        preferences = PreferencesMixin()
+        preferences.language_code = "en"
+        translated = preferences.translate_runtime("页面 2: 关键词文本 - 无内容描述")
+        self.assertEqual(translated, "Page 2: Keyword text - no description")
+        self.assertEqual(
+            preferences.translate_runtime("预览已生成：可继续框选、分析，满意后再保存"),
+            "Preview ready; continue selecting or analyzing before saving",
+        )
 
     def test_text_redaction_saves_an_unencrypted_pdf(self):
         source = self._plain_pdf()

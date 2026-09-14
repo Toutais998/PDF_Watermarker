@@ -3,5 +3,4 @@ opencv-python-headless
 numpy
 Pillow
 tkinterdnd2
-pyinstaller
 pikepdf>=10.12,<11

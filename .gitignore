@@ -19,6 +19,7 @@ dist/
 htmlcov/
 .vscode/
 .idea/
+tmp/
 _page*.png
 _mark6_*
 _mark7_*
