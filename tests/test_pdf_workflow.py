@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import pikepdf
 import pymupdf as fitz
@@ -50,8 +51,8 @@ class PdfWorkflowTests(unittest.TestCase):
         return target
 
     def test_current_version(self):
-        self.assertEqual(APP_VERSION, 14)
-        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark14")
+        self.assertEqual(APP_VERSION, 15)
+        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark15")
 
     def test_english_runtime_translation(self):
         preferences = PreferencesMixin()
@@ -79,8 +80,28 @@ class PdfWorkflowTests(unittest.TestCase):
         self.assertFalse(is_pdf_encrypted(target))
         with fitz.open(target) as result:
             text = result[0].get_text()
+            self.assertEqual(result.pagelayout, "OneColumn")
         self.assertNotIn("DRAFT WATERMARK", text)
         self.assertIn("Body text must remain", text)
+
+    def test_save_dialog_starts_in_source_pdf_folder(self):
+        source_folder = self.root / "source"
+        source_folder.mkdir()
+        source = source_folder / "input.pdf"
+
+        remover = PDFWatermarkRemover.__new__(PDFWatermarkRemover)
+        remover.doc = object()
+        remover.pdf_path = str(self.root / "preview.pdf")
+        remover.original_pdf_path = str(source)
+        remover.is_preview_session = True
+        remover.language_code = "en"
+        remover.translate_runtime = lambda value: value
+
+        with mock.patch("pdf_watermarker.app.filedialog.asksaveasfilename", return_value="") as dialog:
+            remover.save_current_result()
+
+        self.assertEqual(dialog.call_args.kwargs["initialdir"], str(source_folder.resolve()))
+        self.assertEqual(dialog.call_args.kwargs["initialfile"], "input_watermark_removed.pdf")
 
     def test_keyword_detection_finds_edge_watermark(self):
         source = self._plain_pdf()

@@ -103,6 +103,7 @@ class ProcessingMixin:
 
     @staticmethod
     def _save_unencrypted_pdf(doc, output_path: str):
+        doc.set_pagelayout("OneColumn")
         doc.save(
             output_path,
             # Remove unreferenced watermark/font objects and compact the many

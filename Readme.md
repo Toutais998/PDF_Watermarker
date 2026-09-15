@@ -1,6 +1,6 @@
-# PDF 水印去除工具（Mark14）
+# PDF 水印去除工具（Mark15）
 
-Mark14 是当前唯一保留的版本，支持 Windows 与 macOS。工具用于合法持有的 PDF：
+Mark15 是当前唯一保留的版本，支持 Windows 与 macOS。工具用于合法持有的 PDF：
 输入已知密码或空密码解除加密/权限保护，并检测、预览和删除文本、图片、矢量及
 PDF 内置水印对象。程序不会猜测或破解未知密码。
 
@@ -8,7 +8,7 @@ PDF 内置水印对象。程序不会猜测或破解未知密码。
 
 ```text
 PDFWaterMarker/
-├── Mark14.py                     # 当前跨平台入口
+├── Mark15.py                     # 当前跨平台入口
 ├── PDFWaterMarker.command        # macOS 双击启动快捷方式
 ├── pdf_watermarker/              # GUI、检测、移除及共享业务代码
 ├── pdf_decryptor/                # pikepdf/libqpdf 解密模块
@@ -77,7 +77,7 @@ JPEG XL 等链接库；即使本程序不调用视频接口，动态链接关系
 `cv2` 整体无法载入。PyInstaller 的 `.app` 是依赖展开目录，不能拿压缩下载包大小
 直接比较。PyInstaller 本身只是构建工具，不会被整体装进最终应用。
 
-Mark14 不再为 macOS 生成 `.app`。它直接使用项目已有的 `.venv`，因此不会再复制
+Mark15 不再为 macOS 生成 `.app`。它直接使用项目已有的 `.venv`，因此不会再复制
 一份 OpenCV、PyMuPDF、Python 和 Tcl/Tk。项目总体仍需要这些运行库，但磁盘上只
 保留虚拟环境中的一份；启动时也没有 one-file 解压过程。
 
@@ -89,7 +89,7 @@ Windows PowerShell：
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-windows-build.txt
-python Mark14.py
+python Mark15.py
 ```
 
 macOS：
@@ -102,7 +102,7 @@ python -m pip install -r requirements.txt
 ```
 
 Finder 中可直接双击 `PDFWaterMarker.command`。它只定位当前项目目录并执行
-`.venv/bin/python Mark14.py`，没有依赖复制，也不需要 PyInstaller。若移动整个项目
+`.venv/bin/python Mark15.py`，没有依赖复制，也不需要 PyInstaller。若移动整个项目
 文件夹，快捷方式仍然有效。
 
 ## 测试
@@ -110,7 +110,7 @@ Finder 中可直接双击 `PDFWaterMarker.command`。它只定位当前项目目
 每次修改后必须对当前源码重新运行，不能沿用旧版本测试结论：
 
 ```bash
-.venv/bin/python -m compileall -q Mark14.py pdf_watermarker pdf_decryptor tests
+.venv/bin/python -m compileall -q Mark15.py pdf_watermarker pdf_decryptor tests
 .venv/bin/python -m unittest discover -v
 ```
 
@@ -125,7 +125,7 @@ Windows 可以在本地保留完整构建链、spec、EXE 和安装包（这些�
 .\scripts\build_windows.ps1
 ```
 
-输出：`dist\Mark14Final.exe`。Windows 构建依赖集中在
+输出：`dist\Mark15Final.exe`。Windows 构建依赖集中在
 `requirements-windows-build.txt`，其中包含 PyInstaller。
 
 macOS 遵循最小依赖、最少磁盘占用和最快启动原则：
@@ -134,6 +134,11 @@ macOS 遵循最小依赖、最少磁盘占用和最快启动原则：
 - 不生成 `.app`、DMG 或重复依赖目录；
 - 直接通过 `PDFWaterMarker.command` 使用 `.venv`；
 - 开发完成后清除 `build/`、`dist/`、spec、测试截图和 Python 缓存。
+
+## Mark15 变更
+
+- 导出的 PDF 默认使用连续单列滚动（`OneColumn`）页面布局。
+- 保存对话框默认打开源 PDF 所在文件夹，同时仍可浏览选择其他目录。
 
 ## Mark14 变更
 

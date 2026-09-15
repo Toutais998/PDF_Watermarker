@@ -903,11 +903,13 @@ class PDFWatermarkRemover(PreferencesMixin, DetectionMixin, ProcessingMixin, Geo
             self.showinfo("提示", "请先点击“预览去除效果”，确认满意后再保存")
             return
 
-        base_name = os.path.splitext(os.path.basename(self.original_pdf_path or self.pdf_path))[0]
+        source_path = self.original_pdf_path or self.pdf_path
+        base_name = os.path.splitext(os.path.basename(source_path))[0]
         output_path = filedialog.asksaveasfilename(
             title=self.translate_runtime("保存当前预览结果"),
             defaultextension=".pdf",
             filetypes=[(self.translate_runtime("PDF 文件"), "*.pdf"), (self.translate_runtime("所有文件"), "*.*")],
+            initialdir=os.path.dirname(os.path.abspath(source_path)),
             initialfile=f"{base_name}_{'watermark_removed' if self.language_code == 'en' else '无水印'}.pdf",
         )
         if not output_path:
