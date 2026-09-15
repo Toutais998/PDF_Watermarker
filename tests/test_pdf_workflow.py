@@ -51,8 +51,8 @@ class PdfWorkflowTests(unittest.TestCase):
         return target
 
     def test_current_version(self):
-        self.assertEqual(APP_VERSION, 15)
-        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark15")
+        self.assertEqual(APP_VERSION, 16)
+        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark16")
 
     def test_english_runtime_translation(self):
         preferences = PreferencesMixin()
@@ -83,6 +83,28 @@ class PdfWorkflowTests(unittest.TestCase):
             self.assertEqual(result.pagelayout, "OneColumn")
         self.assertNotIn("DRAFT WATERMARK", text)
         self.assertIn("Body text must remain", text)
+
+    def test_saved_pdf_does_not_claim_pdfa_conformance(self):
+        source = self._plain_pdf("pdfa_source.pdf")
+        pdfa_namespace = "http://www.aiim.org/pdfa/ns/id/"
+        with fitz.open(source) as doc:
+            doc.set_metadata({**doc.metadata, "title": "Metadata must remain"})
+            doc.set_xml_metadata(
+                f'''<x:xmpmeta xmlns:x="adobe:ns:meta/">
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<rdf:Description rdf:about="" xmlns:pdfaid="{pdfa_namespace}">
+<pdfaid:part>2</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance>
+</rdf:Description></rdf:RDF></x:xmpmeta>'''
+            )
+            target = self.root / "editable.pdf"
+            PDFWatermarkRemover._save_unencrypted_pdf(doc, str(target))
+
+        with fitz.open(target) as result:
+            xml = result.get_xml_metadata()
+            self.assertNotIn("pdfaid:part", xml)
+            self.assertNotIn("pdfaid:conformance", xml)
+            self.assertEqual(result.metadata["title"], "Metadata must remain")
+            self.assertFalse(result.is_encrypted)
 
     def test_save_dialog_starts_in_source_pdf_folder(self):
         source_folder = self.root / "source"

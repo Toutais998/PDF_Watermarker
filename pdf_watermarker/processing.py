@@ -4,6 +4,7 @@ import os
 import re
 import sys
 from typing import Dict, List, Optional
+from xml.etree import ElementTree
 
 import pymupdf as fitz
 import numpy as np
@@ -14,6 +15,8 @@ from .models import WatermarkInfo
 
 
 class ProcessingMixin:
+    _PDFA_ID_NAMESPACE = "http://www.aiim.org/pdfa/ns/id/"
+
     def _apply_watermarks_to_pdf(self, input_path: str, output_path: str, selected: List[WatermarkInfo]):
         work_doc = fitz.open(input_path)
         try:
@@ -103,6 +106,7 @@ class ProcessingMixin:
 
     @staticmethod
     def _save_unencrypted_pdf(doc, output_path: str):
+        ProcessingMixin._remove_pdfa_identification(doc)
         doc.set_pagelayout("OneColumn")
         doc.save(
             output_path,
@@ -116,6 +120,37 @@ class ProcessingMixin:
         )
         if is_pdf_encrypted(output_path):
             raise RuntimeError("输出 PDF 仍带有密码或保护，已拒绝保存")
+
+    @staticmethod
+    def _remove_pdfa_identification(doc) -> None:
+        """Remove only the XMP markers that make Acrobat open a PDF as PDF/A."""
+        xml = doc.get_xml_metadata()
+        if not xml or ProcessingMixin._PDFA_ID_NAMESPACE not in xml:
+            return
+
+        try:
+            root = ElementTree.fromstring(xml)
+        except (ElementTree.ParseError, ValueError):
+            # A malformed PDF/A claim should not survive into an edited output.
+            doc.del_xml_metadata()
+            return
+
+        pdfa_prefix = f"{{{ProcessingMixin._PDFA_ID_NAMESPACE}}}"
+        changed = False
+        for parent in root.iter():
+            for child in list(parent):
+                if child.tag.startswith(pdfa_prefix):
+                    parent.remove(child)
+                    changed = True
+            for name in list(parent.attrib):
+                if name.startswith(pdfa_prefix):
+                    del parent.attrib[name]
+                    changed = True
+
+        if changed:
+            doc.set_xml_metadata(
+                ElementTree.tostring(root, encoding="unicode", xml_declaration=False)
+            )
 
     @staticmethod
     def _find_tessdata() -> str:
