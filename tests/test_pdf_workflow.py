@@ -51,8 +51,8 @@ class PdfWorkflowTests(unittest.TestCase):
         return target
 
     def test_current_version(self):
-        self.assertEqual(APP_VERSION, 16)
-        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark16")
+        self.assertEqual(APP_VERSION, 17)
+        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark17")
 
     def test_english_runtime_translation(self):
         preferences = PreferencesMixin()
@@ -124,6 +124,28 @@ class PdfWorkflowTests(unittest.TestCase):
 
         self.assertEqual(dialog.call_args.kwargs["initialdir"], str(source_folder.resolve()))
         self.assertEqual(dialog.call_args.kwargs["initialfile"], "input_watermark_removed.pdf")
+
+    def test_direct_save_does_not_require_preview(self):
+        source = self._plain_pdf("direct_source.pdf")
+        target = self.root / "direct_editable.pdf"
+        remover = PDFWatermarkRemover.__new__(PDFWatermarkRemover)
+        remover.doc = object()
+        remover.pdf_path = str(source)
+        remover.original_pdf_path = str(source)
+        remover.language_code = "en"
+        remover.translate_runtime = lambda value: value
+        remover.status_var = mock.Mock()
+        remover.showinfo = mock.Mock()
+        remover.showerror = mock.Mock()
+
+        with mock.patch("pdf_watermarker.app.filedialog.asksaveasfilename", return_value=str(target)):
+            remover.save_direct_result()
+
+        self.assertTrue(target.exists())
+        self.assertFalse(is_pdf_encrypted(target))
+        with fitz.open(target) as result:
+            self.assertEqual(result.pagelayout, "OneColumn")
+            self.assertIn("Body text must remain", result[0].get_text())
 
     def test_keyword_detection_finds_edge_watermark(self):
         source = self._plain_pdf()

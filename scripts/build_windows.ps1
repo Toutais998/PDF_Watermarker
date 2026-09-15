@@ -8,6 +8,6 @@ Set-Location $ProjectDir
     --clean `
     --noconsole `
     --onefile `
-    --name Mark16Final `
+    --name Mark17Final `
     --icon assets\pdf_tool_icon.ico `
-    Mark16.py
+    Mark17.py

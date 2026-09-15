@@ -109,7 +109,9 @@ class PDFWatermarkRemover(PreferencesMixin, DetectionMixin, ProcessingMixin, Geo
         self.localized(Button(top_frame, bg=BUTTON_BG, fg=BUTTON_FG,
                command=self.preview_selected_watermarks, width=14, height=2), "preview").pack(side=LEFT, padx=5)
         self.localized(Button(top_frame, bg="#28a745", fg=BUTTON_FG,
-               command=self.save_current_result, width=14, height=2), "save").pack(side=LEFT, padx=5)
+               command=self.save_direct_result, width=12, height=2), "save_direct").pack(side=LEFT, padx=5)
+        self.localized(Button(top_frame, bg="#218838", fg=BUTTON_FG,
+               command=self.save_current_result, width=14, height=2), "save_preview").pack(side=LEFT, padx=5)
         self.localized(Button(top_frame, bg="#6c757d", fg=BUTTON_FG,
                command=self.restore_original_pdf, width=12, height=2), "restore").pack(side=LEFT, padx=5)
 
@@ -895,12 +897,40 @@ class PDFWatermarkRemover(PreferencesMixin, DetectionMixin, ProcessingMixin, Geo
             self.master.after(0, lambda: self.showerror("错误", f"生成预览失败: {error}"))
             self.master.after(0, lambda: self.status_var.set("生成预览失败"))
 
+    def save_direct_result(self):
+        """Save the current PDF without applying any watermark-removal edits."""
+        if not self.doc or not self.pdf_path:
+            self.showinfo("提示", "请先打开 PDF 文件")
+            return
+
+        source_path = self.original_pdf_path or self.pdf_path
+        base_name = os.path.splitext(os.path.basename(source_path))[0]
+        output_path = filedialog.asksaveasfilename(
+            title=self.translate_runtime("直接保存 PDF"),
+            defaultextension=".pdf",
+            filetypes=[(self.translate_runtime("PDF 文件"), "*.pdf"), (self.translate_runtime("所有文件"), "*.*")],
+            initialdir=os.path.dirname(os.path.abspath(source_path)),
+            initialfile=f"{base_name}_{'editable' if self.language_code == 'en' else '可编辑'}.pdf",
+        )
+        if not output_path:
+            return
+
+        try:
+            self.status_var.set("正在直接保存 PDF...")
+            with fitz.open(self.pdf_path) as work_doc:
+                self._save_unencrypted_pdf(work_doc, output_path)
+            self.status_var.set(f"已保存：{os.path.basename(output_path)}")
+            self.showinfo("保存完成", f"PDF 已直接保存到：\n{output_path}\n\n已移除 PDF/A 只读声明和 PDF 保护，并设置为连续滚动布局。")
+        except Exception as e:
+            self.showerror("错误", f"直接保存失败: {e}")
+            self.status_var.set("直接保存失败")
+
     def save_current_result(self):
         if not self.doc or not self.pdf_path:
             self.showinfo("提示", "请先打开 PDF 文件")
             return
         if not self.is_preview_session:
-            self.showinfo("提示", "请先点击“预览去除效果”，确认满意后再保存")
+            self.showinfo("提示", "如需去除水印，请先点击“预览去除效果”；仅解除只读限制请使用“直接保存”")
             return
 
         source_path = self.original_pdf_path or self.pdf_path
