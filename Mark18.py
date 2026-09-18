@@ -1,4 +1,4 @@
-"""Cross-platform entry point for PDF Watermarker Mark17."""
+"""Cross-platform entry point for PDF Watermarker Mark18."""
 
 from pdf_watermarker import main
 

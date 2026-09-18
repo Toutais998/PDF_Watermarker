@@ -185,6 +185,7 @@ ENGLISH_REPLACEMENTS = (
     ("已添加关键词", "Keyword added"),
     ("关键词文本", "Keyword text"),
     ("旋转文本", "Rotated text"),
+    ("PDF 水印注释", "PDF watermark annotation"),
     ("边缘文本", "Edge text"),
     ("底部二维码说明文字", "Footer QR instruction"),
     ("PDF 内置水印对象", "PDF watermark artifact"),

@@ -808,11 +808,21 @@ class PDFWatermarkRemover(PreferencesMixin, DetectionMixin, ProcessingMixin, Geo
             self.explicit_watermark_xrefs = self._scan_explicit_watermark_xrefs()
             for page_idx in range(self.total_pages):
                 page = self.doc[page_idx]
-                page_explicit = self._find_explicit_watermarks(page, page_idx)
+                page_annotations = self._find_watermark_annotations(page, page_idx)
+                page_explicit = page_annotations + self._find_explicit_watermarks(page, page_idx)
                 explicit_marks.extend(page_explicit)
                 page_vectors = self._collect_vector_candidates(page, page_idx)
                 vector_candidates.extend(page_vectors)
                 page_text_marks = self._find_text_watermarks(page, page_idx)
+                if page_annotations:
+                    annotation_rects = [mark.rect for mark in page_annotations if mark.rect]
+                    page_text_marks = [
+                        mark for mark in page_text_marks
+                        if not mark.rect or not any(
+                            self._rect_overlap_ratio(mark.rect, rect) >= 0.5
+                            for rect in annotation_rects
+                        )
+                    ]
                 if any(w.source == "explicit-watermark-artifact" for w in page_explicit):
                     # 内置 Watermark Artifact 中的旋转文字已经由对象级候选覆盖；
                     # 再把它们作为文字候选会造成重复 redaction 和正文误伤。

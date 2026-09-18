@@ -10,4 +10,4 @@ if [ ! -x "$python_bin" ]; then
 fi
 
 cd "$project_dir"
-exec "$python_bin" Mark17.py
+exec "$python_bin" Mark18.py

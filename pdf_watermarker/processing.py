@@ -29,6 +29,10 @@ class ProcessingMixin:
                     continue
                 page = work_doc[page_idx]
 
+                for wm in page_items:
+                    if wm.source == "watermark-annotation":
+                        self._remove_watermark_annotation(page, wm)
+
                 if any(w.source == "explicit-watermark-artifact" for w in page_items):
                     self._remove_explicit_watermark_artifacts(work_doc, page)
 
@@ -52,7 +56,8 @@ class ProcessingMixin:
                 # 2) 图片水印按页面删除引用，避免清空图片流后留下黑块。
                 for wm in page_items:
                     if wm.is_text or wm.source in (
-                        "soft-vector", "rendered-diagonal", "explicit-watermark-artifact", "background-image"
+                        "soft-vector", "rendered-diagonal", "explicit-watermark-artifact", "background-image",
+                        "watermark-annotation",
                     ):
                         continue
                     removed_calls = 0
@@ -75,7 +80,7 @@ class ProcessingMixin:
                 for wm in page_items:
                     if wm.source in (
                         "soft-vector", "rendered-diagonal", "explicit-watermark-artifact", "background-image",
-                        "explicit-image-watermark", "explicit-form-watermark",
+                        "explicit-image-watermark", "explicit-form-watermark", "watermark-annotation",
                     ):
                         continue
                     if wm.is_text:
@@ -205,6 +210,36 @@ class ProcessingMixin:
         removed = 0
         for content_xref in page.get_contents():
             removed += _filter_watermark_paths(doc, page, content_xref, rects)
+        return removed
+
+    @staticmethod
+    def _remove_watermark_annotation(page, watermark: WatermarkInfo) -> int:
+        """Delete the matching Watermark annotation from this page."""
+        removed = 0
+        try:
+            annotations = list(page.annots() or [])
+        except Exception:
+            return removed
+
+        for annot in annotations:
+            try:
+                same_xref = bool(watermark.xref and annot.xref == watermark.xref)
+                is_watermark = bool(annot.type and annot.type[1] == "Watermark")
+                same_rect = False
+                if watermark.rect:
+                    annot_rect = fitz.Rect(annot.rect)
+                    intersection = annot_rect & watermark.rect
+                    same_rect = (
+                        not intersection.is_empty
+                        and intersection.width * intersection.height
+                        >= annot_rect.width * annot_rect.height * 0.95
+                    )
+                matches_target = same_xref if watermark.xref else same_rect
+                if is_watermark and matches_target:
+                    page.delete_annot(annot)
+                    removed += 1
+            except Exception:
+                continue
         return removed
 
     def _redact_pale_regions(self, doc, page, rects):

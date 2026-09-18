@@ -10,7 +10,7 @@ password.
 
 ## Current Version and Layout
 
-- `Mark17.py` is the only current application entry point.
+- `Mark18.py` is the only current application entry point.
 - `pdf_watermarker/version.py` is the version source of truth.
 - `pdf_watermarker/app.py` owns UI and session orchestration.
 - `pdf_watermarker/detection.py` owns watermark and ROI detection.
@@ -30,8 +30,8 @@ the archive for old implementations.
 ## Mandatory Version Bump
 
 Every development change that modifies application source must increment the
-integer Mark version. The next source change after Mark17 must be Mark18, then
-Mark19, and so on. In the same change:
+integer Mark version. The next source change after Mark18 must be Mark19, then
+Mark20, and so on. In the same change:
 
 1. Rename the root entry point to `Mark<version>.py` and remove the prior entry.
 2. Update `APP_VERSION` in `pdf_watermarker/version.py`.
@@ -51,7 +51,7 @@ Windows PowerShell:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-windows-build.txt
-python Mark17.py
+python Mark18.py
 ```
 
 macOS:
@@ -71,7 +71,7 @@ document its environment marker and keep platform-specific outputs ignored.
 Run against the changed source immediately before committing:
 
 ```bash
-.venv/bin/python -m compileall -q Mark17.py pdf_watermarker pdf_decryptor tests
+.venv/bin/python -m compileall -q Mark18.py pdf_watermarker pdf_decryptor tests
 .venv/bin/python -m unittest discover -v
 ```
 

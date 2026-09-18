@@ -13,6 +13,38 @@ from .models import ImageCandidate, VectorCandidate, WatermarkInfo
 
 
 class DetectionMixin:
+    def _find_watermark_annotations(self, page, page_idx: int) -> List[WatermarkInfo]:
+        """Find standard PDF Watermark annotations attached to a page."""
+        results = []
+        try:
+            annotations = list(page.annots() or [])
+        except Exception:
+            return results
+
+        for annot in annotations:
+            try:
+                type_name = annot.type[1] if annot.type else ""
+                obj = self.doc.xref_object(annot.xref, compressed=True)
+                if type_name != "Watermark" and not re.search(r"/Subtype\s*/Watermark\b", obj):
+                    continue
+                info = annot.info or {}
+                description = (info.get("content") or "标准 PDF Watermark 注释").strip()
+                results.append(
+                    WatermarkInfo(
+                        type_name="PDF 水印注释",
+                        page_index=page_idx,
+                        content=description,
+                        rect=fitz.Rect(annot.rect),
+                        is_text=False,
+                        xref=annot.xref,
+                        confidence=1.0,
+                        source="watermark-annotation",
+                    )
+                )
+            except Exception:
+                continue
+        return results
+
     def _find_text_watermarks(self, page, page_idx: int) -> List[WatermarkInfo]:
         results = []
         text_dict = page.get_text("dict")
@@ -440,6 +472,18 @@ class DetectionMixin:
             return None
         r, g, b = color_value[:3]
         return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+    @staticmethod
+    def _rect_overlap_ratio(subject: fitz.Rect, other: fitz.Rect) -> float:
+        """Return how much of ``subject`` is covered by ``other``."""
+        if subject.is_empty or other.is_empty:
+            return 0.0
+        intersection = subject & other
+        if intersection.is_empty:
+            return 0.0
+        return (intersection.width * intersection.height) / max(
+            1.0, subject.width * subject.height
+        )
 
     def _find_repeated_graphics(
         self,

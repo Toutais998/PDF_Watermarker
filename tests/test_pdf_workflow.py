@@ -50,9 +50,25 @@ class PdfWorkflowTests(unittest.TestCase):
             )
         return target
 
+    def _watermark_annotation_pdf(self, name="watermark_annotation.pdf") -> Path:
+        path = self.root / name
+        doc = fitz.open()
+        page = doc.new_page()
+        page.insert_text((72, 72), "Body text must remain")
+        annot = page.add_freetext_annot(
+            fitz.Rect(5, 100, 25, 300),
+            "LEFT WATERMARK",
+            fontsize=10,
+            rotate=90,
+        )
+        doc.xref_set_key(annot.xref, "Subtype", "/Watermark")
+        doc.save(path)
+        doc.close()
+        return path
+
     def test_current_version(self):
-        self.assertEqual(APP_VERSION, 17)
-        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark17")
+        self.assertEqual(APP_VERSION, 18)
+        self.assertEqual(APP_DISPLAY_NAME, "PDF 水印去除工具 Mark18")
 
     def test_english_runtime_translation(self):
         preferences = PreferencesMixin()
@@ -153,6 +169,26 @@ class PdfWorkflowTests(unittest.TestCase):
         with fitz.open(source) as doc:
             matches = remover._find_text_watermarks(doc[0], 0)
         self.assertTrue(any(mark.content == "DRAFT WATERMARK" for mark in matches))
+
+    def test_watermark_annotation_is_detected_and_removed(self):
+        source = self._watermark_annotation_pdf()
+        target = self.root / "watermark_annotation_clean.pdf"
+        remover = PDFWatermarkRemover.__new__(PDFWatermarkRemover)
+
+        with fitz.open(source) as doc:
+            remover.doc = doc
+            matches = remover._find_watermark_annotations(doc[0], 0)
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].source, "watermark-annotation")
+        remover._apply_watermarks_to_pdf(str(source), str(target), matches)
+
+        self.assertFalse(is_pdf_encrypted(target))
+        with fitz.open(target) as result:
+            page = result[0]
+            self.assertNotIn("LEFT WATERMARK", page.get_text())
+            self.assertIn("Body text must remain", page.get_text())
+            self.assertFalse(list(page.annots() or []))
 
     def test_known_password_unlock(self):
         source = self._encrypted_pdf("secret")
